@@ -1,0 +1,37 @@
+# oath-harness
+# Trust data (contains per-project trust scores)
+.oath-harness/trust-data/
+.oath-harness/audit-logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Node (if applicable)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# Test artifacts
+coverage/
+.pytest_cache/
+htmlcov/
+
+# Temp
+*.tmp
+*.bak
