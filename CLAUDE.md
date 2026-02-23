@@ -128,7 +128,7 @@ hooks/
 ### Testing
 
 ```bash
-bash tests/run-all-tests.sh    # 全テスト（258件）
+bash tests/run-all-tests.sh    # 全テスト（272件）
 bash tests/run-unit-tests.sh   # 単体テスト（197件）
 bash tests/run-integration-tests.sh  # 統合テスト（61件）
 ```
@@ -159,4 +159,4 @@ autonomy < 0.4        → human_required
 ## Development Status
 
 Phase 1 (MVP) — BUILDING Wave 5（ドキュメント・完成）
-全258テスト Green（単体197 + 統合61）
+全272テスト Green（単体209 + 統合63）

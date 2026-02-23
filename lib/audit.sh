@@ -57,10 +57,28 @@ _atl_ensure_dir() {
 }
 
 # ---------------------------------------------------------------------------
+# _atl_flock_append
+# Append a line to a file under flock protection (CRIT-002)
+# Args: file (string), line (string)
+# ---------------------------------------------------------------------------
+_atl_flock_append() {
+    local file="$1"
+    local line="$2"
+    (
+        flock -w 5 200 || {
+            log_error "audit: flock timeout on ${file}"
+            return 1
+        }
+        echo "${line}" >> "${file}"
+    ) 200>"${file}.lock"
+}
+
+# ---------------------------------------------------------------------------
 # atl_append_pre
 # Append initial audit entry at PreToolUse time
 # Args: session_id, tool_name, tool_input(JSON), domain, risk_category,
-#        trust_score_before, autonomy_score, decision
+#        trust_score_before, autonomy_score, decision,
+#        recommended_model, phase
 # Side effect: appends 1 line to audit/YYYY-MM-DD.jsonl
 # ---------------------------------------------------------------------------
 atl_append_pre() {
@@ -72,6 +90,8 @@ atl_append_pre() {
     local trust_score_before="$6"
     local autonomy_score="$7"
     local decision="$8"
+    local recommended_model="${9:-unknown}"
+    local phase="${10:-unknown}"
 
     local timestamp
     timestamp="$(now_iso8601)"
@@ -96,7 +116,7 @@ atl_append_pre() {
             --arg error "invalid tool_input JSON" \
             '{timestamp: $timestamp, session_id: $session_id, tool_name: $tool_name, error: $error}'
         )"
-        echo "${fallback_line}" >> "${log_file}" || {
+        _atl_flock_append "${log_file}" "${fallback_line}" || {
             log_error "audit: Failed to write fallback entry to ${log_file}"
         }
         return 0
@@ -116,6 +136,8 @@ atl_append_pre() {
         --arg decision "${decision}" \
         --arg outcome "pending" \
         --argjson trust_score_after "null" \
+        --arg recommended_model "${recommended_model}" \
+        --arg phase "${phase}" \
     )" 2>/dev/null
 
     if [[ -z "${entry}" ]]; then
@@ -123,7 +145,7 @@ atl_append_pre() {
         return 1
     fi
 
-    echo "${entry}" >> "${log_file}" || {
+    _atl_flock_append "${log_file}" "${entry}" || {
         log_error "audit: Failed to write entry to ${log_file}"
         # Write failure does not block execution
     }
@@ -173,7 +195,7 @@ atl_update_outcome() {
         return 1
     fi
 
-    echo "${entry}" >> "${log_file}" || {
+    _atl_flock_append "${log_file}" "${entry}" || {
         log_error "audit: Failed to write outcome entry to ${log_file}"
     }
 

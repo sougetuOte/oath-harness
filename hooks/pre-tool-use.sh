@@ -60,12 +60,9 @@ session_id="$(sb_get_session_id)"
 # Step 6: Get domain
 domain="$(rcm_get_domain "${tool_name}" "${tool_input_json}")"
 
-# Step 7: Classify risk
+# Step 7-9: Classify risk and parse result
 risk_result="$(rcm_classify "${tool_name}" "${tool_input_json}")"
-
-# Step 8-9: Parse risk_category and risk_value
-risk_category="$(echo "${risk_result}" | awk '{print $1}')"
-risk_value="$(echo "${risk_result}" | awk '{print $2}')"
+read -r risk_category risk_value <<< "${risk_result}"
 
 # Step 10: Get current phase
 phase="$(tpe_get_current_phase)"
@@ -85,7 +82,9 @@ if [[ "${profile_result}" == "blocked" ]]; then
         "${risk_category}" \
         "0" \
         "0" \
-        "blocked" || true
+        "blocked" \
+        "unknown" \
+        "${phase}" || true
     echo "oath-harness: [BLOCKED] tool=${tool_name} domain=${domain} phase=${phase} reason=phase_policy - ${phase} phase does not allow ${domain} operations" >&2
     exit 1
 fi
@@ -112,7 +111,9 @@ atl_append_pre \
     "${risk_category}" \
     "${trust}" \
     "${autonomy}" \
-    "${decision}" || true
+    "${decision}" \
+    "${recommended_model}" \
+    "${phase}" || true
 
 log_debug "pre-tool-use: tool=${tool_name} domain=${domain} risk=${risk_category} trust=${trust} autonomy=${autonomy} decision=${decision} model=${recommended_model}"
 

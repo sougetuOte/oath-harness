@@ -31,10 +31,11 @@ _OATH_CONFIG_DEFAULTS='{
   }
 }'
 
-# Load settings.json into memory. Falls back to defaults if file missing.
+# Load settings.json into memory. Merges with defaults so partial configs work.
 config_load() {
     if [[ -f "${SETTINGS_FILE}" ]]; then
-        _OATH_CONFIG="$(jq -c '.' "${SETTINGS_FILE}" 2>/dev/null)" || {
+        _OATH_CONFIG="$(jq -c --argjson defaults "${_OATH_CONFIG_DEFAULTS}" \
+            '$defaults * .' "${SETTINGS_FILE}" 2>/dev/null)" || {
             log_error "Failed to parse settings.json, using defaults"
             _OATH_CONFIG="${_OATH_CONFIG_DEFAULTS}"
         }
@@ -46,6 +47,7 @@ config_load() {
 
 # Get a config value by dotted key path (e.g. "trust.initial_score")
 # Outputs the raw value (no quotes for numbers/booleans, quoted for strings)
+# Warns on stderr if the key is not in the known defaults structure.
 config_get() {
     local key="$1"
     if [[ -z "${_OATH_CONFIG}" ]]; then
@@ -53,6 +55,14 @@ config_get() {
     fi
     local jq_path
     jq_path="$(printf '%s' "${key}" | jq -R 'split(".")')"
+
+    # Validate key against defaults structure
+    local known
+    known="$(printf '%s' "${_OATH_CONFIG_DEFAULTS}" | jq --argjson path "${jq_path}" 'getpath($path) != null')"
+    if [[ "${known}" != "true" ]]; then
+        log_error "config_get: unknown key '${key}'"
+    fi
+
     printf '%s' "${_OATH_CONFIG}" | jq -r --argjson path "${jq_path}" 'getpath($path) // null'
 }
 
@@ -65,11 +75,11 @@ config_validate() {
 
     local initial_score auto_th human_th failure_decay has_override
 
-    initial_score="$(echo "${_OATH_CONFIG}" | jq -r '.trust.initial_score // 0.3')"
-    auto_th="$(echo "${_OATH_CONFIG}" | jq -r '.autonomy.auto_approve_threshold // 0.8')"
-    human_th="$(echo "${_OATH_CONFIG}" | jq -r '.autonomy.human_required_threshold // 0.4')"
-    failure_decay="$(echo "${_OATH_CONFIG}" | jq -r '.trust.failure_decay // 0.85')"
-    has_override="$(echo "${_OATH_CONFIG}" | jq 'has("trust") and (.trust | has("trust_score_override"))')"
+    initial_score="$(printf '%s' "${_OATH_CONFIG}" | jq -r '.trust.initial_score // 0.3')"
+    auto_th="$(printf '%s' "${_OATH_CONFIG}" | jq -r '.autonomy.auto_approve_threshold // 0.8')"
+    human_th="$(printf '%s' "${_OATH_CONFIG}" | jq -r '.autonomy.human_required_threshold // 0.4')"
+    failure_decay="$(printf '%s' "${_OATH_CONFIG}" | jq -r '.trust.failure_decay // 0.85')"
+    has_override="$(printf '%s' "${_OATH_CONFIG}" | jq 'has("trust") and (.trust | has("trust_score_override"))')"
 
     # Rule 1: initial_score <= 0.5
     if _float_cmp "${initial_score} > 0.5"; then

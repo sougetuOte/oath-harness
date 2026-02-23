@@ -106,7 +106,7 @@ _te_ensure_domain() {
                 "is_warming_up": false,
                 "warmup_remaining": 0
             }' "${TRUST_SCORES_FILE}")"
-        echo "${tmp}" > "${TRUST_SCORES_FILE}"
+        printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
     fi
 }
 
@@ -131,7 +131,7 @@ _te_record_success_impl() {
     tmp="$(jq --arg d "${domain}" --arg action "success" \
         --argjson bt "${boost_threshold}" --argjson fd 0 --arg now "${now}" \
         -f "${LIB_DIR}/jq/trust-update.jq" "${TRUST_SCORES_FILE}")"
-    echo "${tmp}" > "${TRUST_SCORES_FILE}"
+    printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }
 
 # Record a failed operation for a domain
@@ -155,7 +155,7 @@ _te_record_failure_impl() {
     tmp="$(jq --arg d "${domain}" --arg action "failure" \
         --argjson bt 0 --argjson fd "${failure_decay}" --arg now "${now}" \
         -f "${LIB_DIR}/jq/trust-update.jq" "${TRUST_SCORES_FILE}")"
-    echo "${tmp}" > "${TRUST_SCORES_FILE}"
+    printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }
 
 # Apply time decay to all domains based on hibernation rules
@@ -164,38 +164,22 @@ te_apply_time_decay() {
     if [[ ! -f "${TRUST_SCORES_FILE}" ]]; then
         return 0
     fi
+    with_flock "${TRUST_SCORES_FILE}" 5 _te_apply_time_decay_impl
+}
 
+_te_apply_time_decay_impl() {
     local hibernation_days warmup_ops
     hibernation_days="$(config_get "trust.hibernation_days")"
     warmup_ops="$(config_get "trust.warmup_operations")"
     local now_epoch
     now_epoch="$(date -u '+%s')"
 
-    # Get list of domains
-    local domains
-    domains="$(jq -r '.domains | keys[]' "${TRUST_SCORES_FILE}" 2>/dev/null)" || return 0
-
-    local domain last_op last_epoch days_elapsed
-    while IFS= read -r domain; do
-        [[ -z "${domain}" ]] && continue
-        last_op="$(jq -r --arg d "${domain}" '.domains[$d].last_operated_at' "${TRUST_SCORES_FILE}")"
-        # Convert ISO 8601 to epoch using date command
-        last_epoch="$(date -u -d "${last_op}" '+%s' 2>/dev/null)" || continue
-        days_elapsed=$(( (now_epoch - last_epoch) / 86400 ))
-
-        if [[ ${days_elapsed} -gt ${hibernation_days} ]]; then
-            local decay_days=$(( days_elapsed - hibernation_days ))
-            # Apply decay and set warmup using jq
-            local tmp
-            tmp="$(jq --arg d "${domain}" --argjson dd "${decay_days}" --argjson wo "${warmup_ops}" '
-                (.domains[$d].score * pow(0.999; $dd) * 10000 | round / 10000) as $new_score |
-                .domains[$d].score = $new_score |
-                .domains[$d].is_warming_up = true |
-                .domains[$d].warmup_remaining = $wo
-            ' "${TRUST_SCORES_FILE}")"
-            echo "${tmp}" > "${TRUST_SCORES_FILE}"
-        fi
-    done <<< "${domains}"
+    # Single-pass jq: iterate all domains, apply decay where needed
+    local tmp
+    tmp="$(jq --argjson hd "${hibernation_days}" --argjson wo "${warmup_ops}" \
+        --argjson now_epoch "${now_epoch}" \
+        -f "${LIB_DIR}/jq/time-decay.jq" "${TRUST_SCORES_FILE}")" || return 0
+    printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }
 
 # Flush trust scores to disk (final write at session end)
@@ -207,5 +191,5 @@ te_flush() {
     now="$(now_iso8601)"
     local tmp
     tmp="$(jq --arg now "${now}" '.updated_at = $now' "${TRUST_SCORES_FILE}")"
-    echo "${tmp}" > "${TRUST_SCORES_FILE}"
+    printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }

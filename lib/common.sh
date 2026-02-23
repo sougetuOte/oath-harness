@@ -56,6 +56,21 @@ with_flock() {
     ) 200>"${lockfile}.lock"
 }
 
+# --- Atomic file write ---
+# Write content to a file atomically using tmp + mv pattern (ADR-0003)
+# Args: target_file (string), content (string, stdin or $2)
+atomic_write() {
+    local target="$1"
+    local tmp="${target}.tmp.$$"
+    if cat > "${tmp}" && mv "${tmp}" "${target}"; then
+        return 0
+    else
+        rm -f "${tmp}"
+        log_error "atomic_write: failed to write ${target}"
+        return 1
+    fi
+}
+
 # --- ISO 8601 datetime ---
 now_iso8601() {
     date -u '+%Y-%m-%dT%H:%M:%SZ'

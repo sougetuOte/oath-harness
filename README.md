@@ -2,6 +2,8 @@
 
 A trust-based execution control harness for Claude Code that implements Earned Autonomy.
 
+[日本語版 / Japanese](README_ja.md)
+
 ---
 
 ## What is oath-harness?
@@ -52,7 +54,8 @@ Trust is tracked separately per operation domain, not as a single global score:
 | Domain | Covers |
 |--------|--------|
 | `file_read` | File reads, directory listing |
-| `file_write` | File writes, creation, deletion (outside `docs/`) |
+| `file_write` | File writes, creation, deletion (outside `docs/` and `src/`) |
+| `file_write_src` | Writes to `src/` (blocked in PLANNING phase) |
 | `docs_write` | Writes to `docs/` (used in PLANNING phase) |
 | `test_run` | pytest, npm test, go test, etc. |
 | `shell_exec` | Arbitrary shell command execution |
@@ -114,7 +117,7 @@ No external package installation is required beyond these.
 ## Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/sougetuOte/oath-harness.git
 cd oath-harness
 bash install/install.sh
 ```
@@ -256,7 +259,7 @@ These laws govern conflict resolution throughout the system. "Safe by default" i
 ## Testing
 
 ```bash
-bash tests/run-all-tests.sh  # 258 tests
+bash tests/run-all-tests.sh  # 272 tests
 ```
 
 To run unit tests and integration tests separately:
@@ -286,4 +289,4 @@ The following components are planned for Phase 2:
 
 ## License
 
-TBD
+MIT License. See [LICENSE](LICENSE) for details.

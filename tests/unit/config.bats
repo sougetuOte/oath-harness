@@ -69,12 +69,30 @@ teardown() {
     assert_output "0.8"
 }
 
-@test "config_get returns default for missing key" {
+@test "config_get returns null and warns for unknown key" {
     cp "${PROJECT_ROOT}/config/settings.json" "${SETTINGS_FILE}"
     config_load
     run config_get "nonexistent.key"
     assert_success
-    assert_output "null"
+    assert_output --partial "null"
+    assert_output --partial "unknown key"
+}
+
+@test "config_get falls back to default for key missing from settings" {
+    # settings.json with trust section missing warmup_operations
+    cat > "${SETTINGS_FILE}" <<'EOF'
+{
+  "trust": { "hibernation_days": 14, "boost_threshold": 20, "initial_score": 0.3, "failure_decay": 0.85 },
+  "risk": { "lambda1": 0.6, "lambda2": 0.4 },
+  "autonomy": { "auto_approve_threshold": 0.8, "human_required_threshold": 0.4 },
+  "audit": { "log_dir": "audit" },
+  "model": { "opus_aot_threshold": 2 }
+}
+EOF
+    config_load
+    run config_get "trust.warmup_operations"
+    assert_success
+    assert_output "5"
 }
 
 # --- config_validate ---

@@ -489,7 +489,7 @@ main_stop():
 
 #### 責務と境界
 
-ツール名と引数の組み合わせからリスクカテゴリ（low/medium/high/critical）とドメインを決定する。設定ファイルのバリデーション（起動時のみ）も担当する。
+ツール名と引数の組み合わせからリスクカテゴリ（low/medium/high/critical）とドメインを決定する。
 
 #### 公開インターフェース
 
@@ -504,9 +504,6 @@ rcm_get_domain() { local tool_name="$1" tool_input="$2"; ... }
 # 出力: "low 1" | "medium 2" | "high 3" | "critical 4"  (stdout, スペース区切り)
 rcm_classify() { local tool_name="$1" tool_input="$2"; ... }
 
-# settings.json のバリデーションを実行する（起動時に一度のみ呼ぶ）
-# 戻り値: 0=有効, 1=バリデーション違反（stderr にエラー内容）
-rcm_validate_config() { ... }
 ```
 
 #### リスク分類ルール
@@ -558,47 +555,12 @@ tool_name → domain:
   その他のツール                      → "_global"
 ```
 
-#### 設定バリデーション（Zod スキーマ相当）
-
-```bash
-rcm_validate_config():
-  settings = load_json(SETTINGS_JSON)
-
-  # Rule 1: 初期スコアは 0.5 以下
-  initial_score = settings.trust.initial_score
-  if initial_score > 0.5:
-    error "trust.initial_score must be <= 0.5, got: ${initial_score}"
-    return 1
-
-  # Rule 2: auto_approve_threshold > human_required_threshold
-  auto_th = settings.autonomy.auto_approve_threshold
-  human_th = settings.autonomy.human_required_threshold
-  if auto_th <= human_th:
-    error "auto_approve_threshold must be > human_required_threshold"
-    return 1
-
-  # Rule 3: failure_decay は 0.5 以上 1.0 未満
-  decay = settings.trust.failure_decay
-  if decay < 0.5 or decay >= 1.0:
-    error "trust.failure_decay must be in [0.5, 1.0), got: ${decay}"
-    return 1
-
-  # Rule 4: critical リスクの自動承認設定は記述不可（reserved フィールドのチェック）
-  if settings contains "trust.critical_override":
-    error "critical risk auto-approval is not configurable"
-    return 1
-
-  return 0
-```
-
 #### エラー処理方針
 
 | エラー条件 | 処理 |
 |:--|:--|
 | tool_name が空 | domain="_global", risk="medium" として継続 |
 | tool_input の JSON parse 失敗 | 引数なしとして Allow List のみで分類 |
-| settings.json が存在しない | バリデーションをスキップし、デフォルト値で継続 |
-| バリデーション違反 | stderr にエラー、exit 1（hooks 起動を中断） |
 
 ---
 
@@ -1397,7 +1359,7 @@ lib/common.sh       # パス定数、共通ユーティリティ（全ての lib
 lib/config.sh       # 設定ファイル読み込み・キャッシュ・デフォルト値
 lib/bootstrap.sh    # Session Trust Bootstrap
 lib/trust-engine.sh # Trust Engine コア（スコア計算・更新・判定）
-lib/risk-mapper.sh  # Risk Category Mapper + 設定バリデーション
+lib/risk-mapper.sh  # Risk Category Mapper
 lib/tool-profile.sh # Tool Profile Engine（フェーズ別制御）
 lib/audit.sh        # Audit Trail Logger
 lib/model-router.sh # Model Router（推奨情報生成）
@@ -1411,11 +1373,10 @@ lib/model-router.sh # Model Router（推奨情報生成）
 
 # パス定数の確立
 HARNESS_ROOT="${HARNESS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-HARNESS_CONFIG="${HARNESS_ROOT}/config/settings.json"
-HARNESS_STATE="${HARNESS_ROOT}/state/trust-scores.json"
-HARNESS_AUDIT_DIR="${HARNESS_ROOT}/audit"
-HARNESS_LIB="${HARNESS_ROOT}/lib"
-HARNESS_JQ="${HARNESS_LIB}/jq"
+SETTINGS_FILE="${HARNESS_ROOT}/config/settings.json"
+TRUST_SCORES_FILE="${HARNESS_ROOT}/state/trust-scores.json"
+AUDIT_DIR="${HARNESS_ROOT}/audit"
+LIB_DIR="${HARNESS_ROOT}/lib"
 
 # 今日の日付（監査ログファイル名用）
 TODAY="$(date -u +%Y-%m-%d)"
@@ -1459,11 +1420,11 @@ float_compare() {
 ```bash
 # インライン例（2行以内、一カ所のみ使用）
 trust_score=$(jq -r '.domains[$domain].score // 0.3' \
-  --arg domain "${domain}" "${HARNESS_STATE}")
+  --arg domain "${domain}" "${TRUST_SCORES_FILE}")
 
 # 外部ファイル例（3行超、lib/jq/trust-update.jq に分離）
-jq --argjson params "${update_params}" -f "${HARNESS_JQ}/trust-update.jq" \
-  "${HARNESS_STATE}" > "${HARNESS_STATE}.tmp"
+jq --argjson params "${update_params}" -f "${LIB_DIR}/jq/trust-update.jq" \
+  "${TRUST_SCORES_FILE}" > "${TRUST_SCORES_FILE}.tmp"
 ```
 
 ### 6.4 ファイルロック（flock）設計
@@ -1476,15 +1437,15 @@ update_trust_scores() {
   local update_func="$1"
 
   # ロック取得（タイムアウト 5秒）
-  if ! acquire_flock "${HARNESS_STATE}" 5; then
+  if ! acquire_flock "${TRUST_SCORES_FILE}" 5; then
     log_warn "flock timeout: skipping trust score update"
     return 1
   fi
 
   # 安全な一時ファイル更新（原子的置換）
-  local tmp_file="${HARNESS_STATE}.tmp.$$"
-  ${update_func} "${HARNESS_STATE}" > "${tmp_file}" \
-    && mv "${tmp_file}" "${HARNESS_STATE}" \
+  local tmp_file="${TRUST_SCORES_FILE}.tmp.$$"
+  ${update_func} "${TRUST_SCORES_FILE}" > "${tmp_file}" \
+    && mv "${tmp_file}" "${TRUST_SCORES_FILE}" \
     || { rm -f "${tmp_file}"; release_flock; return 1; }
 
   release_flock
@@ -1975,8 +1936,8 @@ fi
 | FR-RM-003 | critical パターン | Risk Category Mapper | AC-017 |
 | FR-RM-004 | Gray Area → medium | Risk Category Mapper | AC-018 |
 | FR-RM-005 | 引数も分類に使用 | Risk Category Mapper | AC-015〜AC-018 |
-| FR-RM-006 | 設定バリデーション | Risk Category Mapper | AC-019 |
-| FR-RM-007 | 危険設定の拒否 | Risk Category Mapper | AC-019 |
+| FR-RM-006 | 設定バリデーション | Config (config.sh) | AC-019 |
+| FR-RM-007 | 危険設定の拒否 | Config (config.sh) | AC-019 |
 | FR-AT-001 | 全操作 JSONL 記録 | Audit Trail Logger | AC-020 |
 | FR-AT-002 | 日付別ファイル | Audit Trail Logger | AC-021 |
 | FR-AT-003 | 全フィールド記録 | Audit Trail Logger | AC-022 |

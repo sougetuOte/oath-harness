@@ -28,6 +28,35 @@ rcm_classify() {
         return 0
     fi
 
+    # Priority 2.5: Compound command analysis (CW-1, WARN-001)
+    # Split on ;, &&, ||, | and check each sub-command independently
+    if echo "${cmd}" | grep -qE '[;|&]{1,2}'; then
+        local subcmd
+        local has_non_allowed=false
+        while IFS= read -r subcmd; do
+            subcmd="$(echo "${subcmd}" | sed 's/^[[:space:]]*//')"
+            [[ -z "${subcmd}" ]] && continue
+            if _rcm_is_critical "${tool_name}" "${subcmd}" "${tool_input}"; then
+                echo "critical 4"
+                return 0
+            fi
+            if _rcm_is_denied "${tool_name}" "${subcmd}"; then
+                echo "high 3"
+                return 0
+            fi
+            if ! _rcm_is_allowed "${tool_name}" "${subcmd}"; then
+                has_non_allowed=true
+            fi
+        done < <(echo "${cmd}" | sed 's/[;&|]\+/\n/g')
+
+        if [[ "${has_non_allowed}" == "true" ]]; then
+            echo "medium 2"
+        else
+            echo "low 1"
+        fi
+        return 0
+    fi
+
     # Priority 3: Allow List (low risk)
     if _rcm_is_allowed "${tool_name}" "${cmd}"; then
         echo "low 1"
@@ -54,9 +83,13 @@ rcm_get_domain() {
         Write|Edit)
             local file_path
             file_path="$(printf '%s' "${tool_input}" | jq -r '.file_path // ""' 2>/dev/null)"
-            file_path="$(realpath -m "${file_path}" 2>/dev/null || printf '%s' "${file_path}")"
+            if command -v realpath >/dev/null 2>&1; then
+                file_path="$(realpath -m "${file_path}" 2>/dev/null || printf '%s' "${file_path}")"
+            fi
             if [[ "${file_path}" == */docs/* ]]; then
                 echo "docs_write"
+            elif [[ "${file_path}" == */src/* || "${file_path}" == src/* ]]; then
+                echo "file_write_src"
             else
                 echo "file_write"
             fi
@@ -188,7 +221,7 @@ _rcm_is_allowed() {
     first_word="$(echo "${cmd}" | awk '{print $1}')"
 
     # Safe read-only commands
-    if [[ "${first_word}" =~ ^(ls|cat|grep|find|pwd|du|file|head|tail|wc|echo|printf|jq)$ ]]; then
+    if [[ "${first_word}" =~ ^(ls|cat|grep|find|pwd|du|file|head|tail|wc|echo|printf|jq|sort|uniq|tr|cut|tee|basename|dirname|date|whoami)$ ]]; then
         return 0
     fi
 

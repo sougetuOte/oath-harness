@@ -94,6 +94,39 @@ teardown() {
     [[ "$(echo "${entry}" | jq -r '.timestamp')" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
 }
 
+# ============================================================
+# DW-2/DW-5: recommended_model と phase が記録される
+# ============================================================
+
+@test "atl_append_pre records recommended_model and phase fields" {
+    atl_append_pre \
+        "sess-model" "Bash" '{"command":"ls"}' \
+        "file_read" "low" "0.5" "0.75" "auto_approved" \
+        "sonnet" "building"
+
+    local today
+    today="$(date -u '+%Y-%m-%d')"
+    local entry
+    entry="$(tail -1 "${AUDIT_DIR}/${today}.jsonl")"
+
+    [ "$(echo "${entry}" | jq -r '.recommended_model')" = "sonnet" ]
+    [ "$(echo "${entry}" | jq -r '.phase')" = "building" ]
+}
+
+@test "atl_append_pre defaults recommended_model and phase to unknown" {
+    atl_append_pre \
+        "sess-default" "Read" '{"file_path":"/tmp/x"}' \
+        "file_read" "low" "0.5" "0.75" "auto_approved"
+
+    local today
+    today="$(date -u '+%Y-%m-%d')"
+    local entry
+    entry="$(tail -1 "${AUDIT_DIR}/${today}.jsonl")"
+
+    [ "$(echo "${entry}" | jq -r '.recommended_model')" = "unknown" ]
+    [ "$(echo "${entry}" | jq -r '.phase')" = "unknown" ]
+}
+
 @test "atl_append_pre entry has tool_input as JSON object" {
     local session_id="test-session-003"
     local tool_input='{"command":"echo hello"}'

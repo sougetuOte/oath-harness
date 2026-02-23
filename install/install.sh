@@ -40,6 +40,12 @@ install_hooks() {
     local stop_hook="${HARNESS_ROOT}/hooks/stop.sh"
 
     if [ -f "${CLAUDE_SETTINGS}" ]; then
+        # Validate existing settings.json before merging
+        if ! jq empty "${CLAUDE_SETTINGS}" 2>/dev/null; then
+            echo "Error: existing settings.json is not valid JSON: ${CLAUDE_SETTINGS}" >&2
+            echo "Please fix or remove it before installing oath-harness." >&2
+            exit 1
+        fi
         # Merge into existing settings
         jq --arg pre "${pre_hook}" \
            --arg post "${post_hook}" \

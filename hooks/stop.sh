@@ -33,13 +33,12 @@ _stop_update_timestamp() {
         return 0
     fi
 
-    local tmp_file="${TRUST_SCORES_FILE}.tmp"
-    if jq --arg ts "$(now_iso8601)" '.updated_at = $ts' "${TRUST_SCORES_FILE}" > "${tmp_file}" 2>/dev/null; then
-        mv "${tmp_file}" "${TRUST_SCORES_FILE}" || rm -f "${tmp_file}"
-    else
-        rm -f "${tmp_file}"
+    local tmp
+    tmp="$(jq --arg ts "$(now_iso8601)" '.updated_at = $ts' "${TRUST_SCORES_FILE}" 2>/dev/null)" || {
         log_debug "stop: skipping updated_at update (corrupted trust-scores.json)"
-    fi
+        return 0
+    }
+    printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }
 
 with_flock "${TRUST_SCORES_FILE}" 5 _stop_update_timestamp || true

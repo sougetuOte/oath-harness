@@ -343,3 +343,38 @@ get_field() {
     assert_equal "$(get_field "_global" "is_warming_up")" "true"
     assert_equal "$(get_field "_global" "warmup_remaining")" "5"
 }
+
+@test "te_apply_time_decay handles multiple domains in single call" {
+    local stale_date recent_date
+    stale_date="$(date -u -d '20 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -v-20d '+%Y-%m-%dT%H:%M:%SZ')"
+    recent_date="$(date -u -d '5 days ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -v-5d '+%Y-%m-%dT%H:%M:%SZ')"
+    create_trust_scores "{
+        \"version\":\"2\",\"updated_at\":\"2026-01-01T00:00:00Z\",\"global_operation_count\":20,
+        \"domains\":{
+            \"_global\":{\"score\":0.5,\"successes\":10,\"failures\":0,\"total_operations\":10,
+            \"last_operated_at\":\"${stale_date}\",\"is_warming_up\":false,\"warmup_remaining\":0},
+            \"file_read\":{\"score\":0.8,\"successes\":10,\"failures\":0,\"total_operations\":10,
+            \"last_operated_at\":\"${recent_date}\",\"is_warming_up\":false,\"warmup_remaining\":0},
+            \"shell_exec\":{\"score\":0.6,\"successes\":5,\"failures\":1,\"total_operations\":6,
+            \"last_operated_at\":\"${stale_date}\",\"is_warming_up\":false,\"warmup_remaining\":0}
+        }
+    }"
+    te_apply_time_decay
+
+    # _global: 20 days ago, 6 decay days → score = 0.5 * 0.999^6 ≈ 0.497
+    local global_score
+    global_score="$(get_score "_global")"
+    # 0.5 * 0.999^6 = 0.5 * 0.994015 = 0.497007... → round to 0.497
+    assert_equal "${global_score}" "0.497"
+    assert_equal "$(get_field "_global" "is_warming_up")" "true"
+
+    # file_read: 5 days ago (within 14d) → unchanged
+    assert_equal "$(get_score "file_read")" "0.8"
+    assert_equal "$(get_field "file_read" "is_warming_up")" "false"
+
+    # shell_exec: 20 days ago, 6 decay days → score = 0.6 * 0.999^6 ≈ 0.5964
+    local shell_score
+    shell_score="$(get_score "shell_exec")"
+    assert_equal "${shell_score}" "0.5964"
+    assert_equal "$(get_field "shell_exec" "is_warming_up")" "true"
+}

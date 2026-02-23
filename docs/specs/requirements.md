@@ -173,7 +173,7 @@ ICLR 2025 採録研究では Mixed Attack の攻撃成功率が 84.30%、OWASP A
 | `outcome` | string | `success` / `failure` / `pending` |
 | `trust_score_after` | float | 操作後の信頼スコア（PostToolUse 時に記録） |
 
-**保存先**: プロジェクトルート配下の `oath-harness/audit/YYYY-MM-DD.jsonl`
+**保存先**: プロジェクトルート配下の `audit/YYYY-MM-DD.jsonl`
 
 #### B-1-4. Tool Profile（ツールプロファイル）
 
@@ -372,7 +372,7 @@ oath-harness は Claude Code が提供する hooks API の以下の 3 フック�
 | `risk.lambda2` | float | `0.4` | 自律度計算式の複雑度係数 |
 | `autonomy.auto_approve_threshold` | float | `0.8` | 自動承認の閾値 |
 | `autonomy.human_required_threshold` | float | `0.4` | 人間確認の閾値 |
-| `audit.log_dir` | string | `"oath-harness/audit"` | 監査ログの保存先ディレクトリ |
+| `audit.log_dir` | string | `"audit"` | 監査ログの保存先ディレクトリ |
 | `model.opus_aot_threshold` | integer | `2` | Opus 使用を判断する AoT 判断ポイント数の閾値 |
 
 **バリデーション制約**（Zod スキーマ相当、設定ファイル解析時に強制）:
@@ -588,7 +588,7 @@ Phase 1 は以下の 7 コンポーネントで構成される。
 | ID | 要求 | 優先度 | 受け入れ条件 |
 |:--|:--|:--|:--|
 | FR-AT-001 | 全てのツール呼び出しを JSONL 形式で記録する | Must | 承認・拒否を問わず全操作がログに記録されること |
-| FR-AT-002 | 日付別のファイルにログを分割する | Must | `oath-harness/audit/YYYY-MM-DD.jsonl` 形式で保存されること |
+| FR-AT-002 | 日付別のファイルにログを分割する | Must | `audit/YYYY-MM-DD.jsonl` 形式で保存されること |
 | FR-AT-003 | 各エントリに Audit Trail Entry の全フィールドを含める | Must | Section B-1-3 の全フィールドが記録されること |
 | FR-AT-004 | センシティブな引数値をマスクする | Must | 環境変数、API キー等の値がマスクされること |
 | FR-AT-005 | ログの追記が原子的に行われる（破損を防ぐ） | Should | ログファイルが読み取り可能な有効な JSONL であること |
@@ -723,7 +723,7 @@ Phase 1 MVP の完了とは、以下の全条件を満たすことである。
 | # | 条件 | 検証方法 |
 |:--|:--|:--|
 | AC-020 | 全てのツール呼び出し（承認・拒否を問わず）がログに記録される | 統合テスト: 10 回の操作後にログファイルに 10 エントリが存在することを確認 |
-| AC-021 | ログが `oath-harness/audit/YYYY-MM-DD.jsonl` 形式で保存される | 統合テスト: ファイル名と JSONL 形式を検証 |
+| AC-021 | ログが `audit/YYYY-MM-DD.jsonl` 形式で保存される | 統合テスト: ファイル名と JSONL 形式を検証 |
 | AC-022 | 各エントリに session_id, tool_name, decision, outcome が含まれる | 単体テスト: エントリのスキーマ検証 |
 | AC-023 | 環境変数名を含む引数がマスクされている | 単体テスト: `API_KEY=secret curl` のような入力でマスクを確認 |
 

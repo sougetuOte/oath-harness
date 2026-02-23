@@ -34,3 +34,14 @@ htmlcov/
 # Temp
 *.tmp
 *.bak
+
+# Session / development state
+SESSION_STATE.md
+.claude/states/
+data/
+
+# Development memos and tasks (not user-facing)
+docs/memos/
+docs/tasks/
+docs/refs/
+docs/slides/

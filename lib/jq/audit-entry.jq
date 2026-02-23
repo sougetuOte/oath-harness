@@ -11,7 +11,9 @@
 #      --argjson autonomy_score 0.82 \
 #      --arg decision "auto_approved" \
 #      --arg outcome "pending" \
-#      --argjson trust_score_after null
+#      --argjson trust_score_after null \
+#      --arg recommended_model "sonnet" \
+#      --arg phase "building"
 
 {
   timestamp:          $timestamp,
@@ -24,5 +26,7 @@
   autonomy_score:     $autonomy_score,
   decision:           $decision,
   outcome:            $outcome,
-  trust_score_after:  $trust_score_after
+  trust_score_after:  $trust_score_after,
+  recommended_model:  $recommended_model,
+  phase:              $phase
 }

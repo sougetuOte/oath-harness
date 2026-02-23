@@ -49,12 +49,8 @@ fi
 # Step 3: Determine outcome from is_error field
 # is_error absent -> default to false -> outcome = "success"
 is_error="$(printf '%s' "${raw_input}" | jq -r '.is_error // false' 2>/dev/null)"
-
-if [[ "${is_error}" == "true" ]]; then
-    outcome="failure"
-else
-    outcome="success"
-fi
+outcome="success"
+[[ "${is_error}" == "true" ]] && outcome="failure"
 
 # Step 4: Load config
 config_load

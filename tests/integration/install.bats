@@ -157,6 +157,41 @@ teardown() {
     assert_success
 }
 
+@test "install.sh fails gracefully on invalid existing settings.json" {
+    local settings="${TEST_PROJECT}/.claude/settings.json"
+    mkdir -p "${TEST_PROJECT}/.claude"
+    echo "not valid json{{{" > "${settings}"
+
+    run bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}"
+    assert_failure
+
+    # Original file should be untouched
+    [ "$(cat "${settings}")" = "not valid json{{{" ]
+}
+
+@test "uninstall.sh preserves non-oath-harness hooks" {
+    local settings="${TEST_PROJECT}/.claude/settings.json"
+    # Install oath-harness hooks first
+    bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}" > /dev/null
+
+    # Add a custom hook to PreToolUse
+    jq '.hooks.PreToolUse += [{"matcher":"Bash","hooks":[{"type":"command","command":"/usr/local/bin/my-custom-hook.sh"}]}]' \
+        "${settings}" > "${settings}.tmp" && mv "${settings}.tmp" "${settings}"
+
+    # Uninstall oath-harness
+    bash "${PROJECT_ROOT}/install/uninstall.sh" "${TEST_PROJECT}" > /dev/null
+
+    # Custom hook should still be present
+    local custom
+    custom="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "${settings}")"
+    [ "${custom}" = "/usr/local/bin/my-custom-hook.sh" ]
+
+    # oath-harness hooks should be gone
+    local oath_count
+    oath_count="$(jq '[.hooks.PreToolUse[]? | select(.hooks[]?.command | test("oath-harness"))] | length' "${settings}")"
+    [ "${oath_count}" -eq 0 ]
+}
+
 # ============================================================
 # PreToolUse hook matcher is empty string (matches all tools)
 # ============================================================
