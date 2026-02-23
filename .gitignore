@@ -1,7 +1,6 @@
-# oath-harness
-# Trust data (contains per-project trust scores)
-.oath-harness/trust-data/
-.oath-harness/audit-logs/
+# oath-harness runtime data
+state/trust-scores.json
+audit/*.jsonl
 
 # Python
 __pycache__/

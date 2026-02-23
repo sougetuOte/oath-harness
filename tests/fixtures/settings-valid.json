@@ -1,0 +1,23 @@
+{
+  "trust": {
+    "hibernation_days": 14,
+    "boost_threshold": 20,
+    "initial_score": 0.3,
+    "warmup_operations": 5,
+    "failure_decay": 0.85
+  },
+  "risk": {
+    "lambda1": 0.6,
+    "lambda2": 0.4
+  },
+  "autonomy": {
+    "auto_approve_threshold": 0.8,
+    "human_required_threshold": 0.4
+  },
+  "audit": {
+    "log_dir": "audit"
+  },
+  "model": {
+    "opus_aot_threshold": 2
+  }
+}
