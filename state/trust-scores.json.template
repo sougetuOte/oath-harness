@@ -1,0 +1,16 @@
+{
+  "version": "2",
+  "updated_at": "1970-01-01T00:00:00Z",
+  "global_operation_count": 0,
+  "domains": {
+    "_global": {
+      "score": 0.3,
+      "successes": 0,
+      "failures": 0,
+      "total_operations": 0,
+      "last_operated_at": "1970-01-01T00:00:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0
+    }
+  }
+}
