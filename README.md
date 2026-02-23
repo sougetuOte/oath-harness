@@ -107,7 +107,7 @@ oath-harness is implemented in four layers:
 ## Prerequisites
 
 - Linux (bash + standard Unix tools)
-- `jq` (for JSON processing)
+- `jq` >= 1.6 (for JSON processing; `walk` function required)
 - Claude Code (hooks API support required)
 
 No external package installation is required beyond these.

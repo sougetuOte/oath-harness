@@ -4,7 +4,8 @@
 
 | カテゴリ | コマンド |
 |---------|---------|
-| ファイル読取 | `ls`, `cat`, `grep`, `find`, `pwd`, `du`, `file` |
+| ファイル読取 | `ls`, `cat`, `grep`, `find`, `pwd`, `du`, `file`, `head`, `tail`, `wc` |
+| 出力・JSON処理 | `echo`, `printf`, `jq` |
 | Git 読取 | `git status`, `git log`, `git diff`, `git show`, `git branch` |
 | テスト | `pytest`, `npm test`, `go test` |
 | パッケージ情報 | `npm list`, `pip list` |

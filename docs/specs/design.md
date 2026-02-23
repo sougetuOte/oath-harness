@@ -720,9 +720,9 @@ sb_ensure_initialized() { ... }
 sb_get_session_id() { ... }
 
 # v1 形式の trust-scores.json を v2 形式に変換する（内部関数）
-# 引数: v1_json (JSON string)
-# 出力: v2_json (JSON string, stdout)
-_sb_migrate_v1_to_v2() { local v1_json="$1"; ... }
+# 引数: なし（TRUST_SCORES_FILE から直接読み込み、同ファイルに上書き）
+# 副作用: TRUST_SCORES_FILE を v2 形式で上書き
+_sb_migrate_v1_to_v2() { ... }
 ```
 
 #### 初期化フロー
@@ -748,7 +748,7 @@ sb_ensure_initialized():
 
   if version == "1" or version is null:
     # v1 → v2 自動マイグレーション（FR-SB-006）
-    raw_json = _sb_migrate_v1_to_v2(raw_json)
+    _sb_migrate_v1_to_v2()  # TRUST_SCORES_FILE を直接読み書き
 
   # 時間減衰の適用（FR-SB-003）
   te_apply_time_decay()
@@ -774,13 +774,16 @@ initialize_default_trust_scores():
   }
   write_json(TRUST_SCORES_JSON, default_json)
 
-_sb_migrate_v1_to_v2(v1_json):
-  # v1 は単一の score フィールドを持つ
+_sb_migrate_v1_to_v2():
+  # TRUST_SCORES_FILE から直接読み込み
+  # v1 は単一の score/successes/failures フィールドを持つ
   # v2 は domains オブジェクトに分割
-  # v1 の score を _global ドメインの初期値として使用
-  v1_score = v1_json.score
-  v2_json = build_v2_with_global_score(v1_score)
-  return v2_json
+  # v1 の値を _global ドメインの初期値として使用
+  v1_score = read_from_file(TRUST_SCORES_FILE, ".score")
+  v1_successes = read_from_file(TRUST_SCORES_FILE, ".successes")
+  v1_failures = read_from_file(TRUST_SCORES_FILE, ".failures")
+  v2_json = build_v2_with_global(v1_score, v1_successes, v1_failures)
+  write_file(TRUST_SCORES_FILE, v2_json)
 ```
 
 #### エラー処理方針
@@ -880,7 +883,7 @@ tpe_check(tool_name, domain, phase):
 
 #### Phase 検出の仕組み
 
-Phase は `.claude/current-phase.md` ファイルから読み取る（Claude Code の `/planning` `/building` `/auditing` スラッシュコマンドが更新する）。
+Phase は `.claude/current-phase.md` ファイルから読み取る（Claude Code の `/planning` `/building` `/auditing` スラッシュコマンドが更新する）。ファイル拡張子は `.md` だが、内容はフェーズ名のプレーンテキスト1行（例: `BUILDING`）である。
 
 ```bash
 tpe_get_current_phase():
@@ -1866,7 +1869,7 @@ fi
 
 ## 10. 設計判断記録（ADR）
 
-本セクションでは Phase 1 設計における重要な設計判断を記録する。完全な ADR は `docs/adr/` に個別ファイルとして作成する。
+本セクションでは Phase 1 設計における重要な設計判断を記録する。完全な ADR は `docs/adr/` に個別ファイル（`ADR-NNNN-<slug>.md` 形式）として作成する。
 
 ### ADR-0001: bash スクリプトのモジュール分割
 

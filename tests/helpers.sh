@@ -29,6 +29,8 @@ setup_test_env() {
 
     unset OATH_HARNESS_INITIALIZED
     unset OATH_HARNESS_SESSION_ID
+    # Reset config cache to prevent cross-test contamination (CI-8)
+    _OATH_CONFIG=""
 }
 
 # ---------------------------------------------------------------------------

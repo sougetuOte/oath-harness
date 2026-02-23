@@ -109,6 +109,10 @@ hooks/
 ├── pre-tool-use.sh  # ツール実行前の判定（allow/block）
 ├── post-tool-use.sh # ツール実行後の信頼更新
 └── stop.sh          # セッション終了時の永続化
+
+install/
+├── install.sh       # hooks登録・ディレクトリ作成
+└── uninstall.sh     # hooks登録解除・クリーンアップ
 ```
 
 ### Prohibited Actions
@@ -153,6 +157,7 @@ autonomy < 0.4        → human_required
 # 信頼スコア更新
 成功時（初期ブースト ≤20操作）: score += (1 - score) × 0.05
 成功時（通常 >20操作）:        score += (1 - score) × 0.02
+成功時（ウォームアップ中）:    上記係数を2倍（0.10 / 0.04）
 失敗時:                       score × 0.85
 ```
 

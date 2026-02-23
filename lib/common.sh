@@ -35,6 +35,8 @@ log_debug() {
 # --- Float comparison ---
 # Returns 0 (true) if the awk numeric expression is true.
 # Usage: _float_cmp "0.3 > 0.5"
+# Note: Relies on awk's non-zero exit for false expressions.
+# Safe because all callers pass literal numeric values from config/jq output.
 _float_cmp() {
     awk "BEGIN { exit !($1) }"
 }
