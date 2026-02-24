@@ -1,7 +1,7 @@
 ---
-name: lam-orchestrate
+name: orchestrate
 description: >
-  LAM Coordinator - タスクを分解し、適切な Subagent で並列実行する。
+  Coordinator - タスクを分解し、適切な Subagent で並列実行する。
   複数ファイル/モジュールにまたがる作業の自動分解・並列実行に使用。
   Use proactively when the user requests multi-file or multi-module operations.
 disable-model-invocation: true
@@ -9,7 +9,7 @@ allowed-tools: Task, Read, Glob, Grep
 argument-hint: "[タスク説明] [--parallel=N] [--dry-run]"
 ---
 
-# LAM Orchestrate Coordinator
+# Orchestrate Coordinator
 
 あなたは oath-harness プロジェクトの **Coordinator**（調整者）です。
 ユーザーから与えられたタスクを分析し、最適な実行計画を立案・実行します。

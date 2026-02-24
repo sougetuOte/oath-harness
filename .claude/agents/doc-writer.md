@@ -14,7 +14,7 @@ tools: Read, Write, Edit, Glob, Grep
 
 ## 担当範囲
 
-### 仕様策定モード（lam-orchestrate 経由で使用される場合）
+### 仕様策定モード（orchestrate 経由で使用される場合）
 
 Coordinator から渡された方針・調査結果をもとに、詳細仕様を策定する:
 
