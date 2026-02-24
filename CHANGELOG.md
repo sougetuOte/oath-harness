@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **oath CLI** (`bin/oath`): Status visualization tool with subcommands — `status`, `audit`, `config`, `phase`, `demo`, `help`, `version`
 - **oath demo**: Runs all commands with generated sample data for quick evaluation without real state files
 - **32 oath-status tests**: Unit tests covering all CLI subcommands and display formatting
+- **`/commit` command**: Document-sync commit workflow — auto-checks test counts, CHANGELOG, module structure, and README before committing
 
 ### Changed
 
