@@ -21,7 +21,9 @@ setup() {
 
     # Copy valid settings as baseline
     mkdir -p "${TEST_TMP}/config"
-    cp "${PROJECT_ROOT}/config/settings.json" "${TEST_TMP}/config/settings.json"
+    cat > "${TEST_TMP}/config/settings.json" <<'TESTCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TESTCFG
 
     unset OATH_HARNESS_INITIALIZED
     unset OATH_HARNESS_SESSION_ID

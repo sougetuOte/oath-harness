@@ -10,8 +10,12 @@ setup() {
 
     TEST_TMP="$(mktemp -d)"
     export HARNESS_ROOT="${PROJECT_ROOT}"
-    export CONFIG_DIR="${PROJECT_ROOT}/config"
-    export SETTINGS_FILE="${PROJECT_ROOT}/config/settings.json"
+    export CONFIG_DIR="${TEST_TMP}/config"
+    export SETTINGS_FILE="${TEST_TMP}/config/settings.json"
+    mkdir -p "${TEST_TMP}/config"
+    cat > "${SETTINGS_FILE}" <<'TESTCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TESTCFG
     export STATE_DIR="${TEST_TMP}"
     export TRUST_SCORES_FILE="${TEST_TMP}/trust-scores.json"
     export AUDIT_DIR="${TEST_TMP}/audit"
@@ -56,8 +60,8 @@ run_stop_hook() {
         STATE_DIR="${TEST_TMP}" \
         TRUST_SCORES_FILE="${TEST_TMP}/trust-scores.json" \
         AUDIT_DIR="${TEST_TMP}/audit" \
-        CONFIG_DIR="${PROJECT_ROOT}/config" \
-        SETTINGS_FILE="${PROJECT_ROOT}/config/settings.json" \
+        CONFIG_DIR="${TEST_TMP}/config" \
+        SETTINGS_FILE="${TEST_TMP}/config/settings.json" \
         OATH_PHASE_FILE="${TEST_TMP}/current-phase.md" \
         bash "${PROJECT_ROOT}/hooks/stop.sh"
 }

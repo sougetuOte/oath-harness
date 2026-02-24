@@ -18,12 +18,16 @@ HELPERS_PROJECT_ROOT="$(_helpers_project_root)"
 setup_test_env() {
     TEST_TMP="$(mktemp -d)"
     export HARNESS_ROOT="${HELPERS_PROJECT_ROOT}"
-    export CONFIG_DIR="${HELPERS_PROJECT_ROOT}/config"
-    export SETTINGS_FILE="${HELPERS_PROJECT_ROOT}/config/settings.json"
+    export CONFIG_DIR="${TEST_TMP}/config"
+    export SETTINGS_FILE="${TEST_TMP}/config/settings.json"
     export STATE_DIR="${TEST_TMP}"
     export TRUST_SCORES_FILE="${TEST_TMP}/trust-scores.json"
     export AUDIT_DIR="${TEST_TMP}/audit"
     export OATH_PHASE_FILE="${TEST_TMP}/current-phase.md"
+
+    # Create test settings with default values (isolated from production config)
+    mkdir -p "${TEST_TMP}/config"
+    create_test_settings
 
     echo "BUILDING" > "${OATH_PHASE_FILE}"
 
@@ -31,6 +35,42 @@ setup_test_env() {
     unset OATH_HARNESS_SESSION_ID
     # Reset config cache to prevent cross-test contamination (CI-8)
     _OATH_CONFIG=""
+}
+
+# ---------------------------------------------------------------------------
+# create_test_settings
+# Create a settings.json with all default values in the test temp directory
+# This ensures tests are isolated from production config/settings.json
+# Usage: called automatically by setup_test_env, or manually in test setup
+# ---------------------------------------------------------------------------
+create_test_settings() {
+    local dest="${SETTINGS_FILE:-${TEST_TMP}/config/settings.json}"
+    mkdir -p "$(dirname "${dest}")"
+    cat > "${dest}" <<'SETTINGS_EOF'
+{
+  "trust": {
+    "hibernation_days": 14,
+    "boost_threshold": 20,
+    "initial_score": 0.3,
+    "warmup_operations": 5,
+    "failure_decay": 0.85
+  },
+  "risk": {
+    "lambda1": 0.6,
+    "lambda2": 0.4
+  },
+  "autonomy": {
+    "auto_approve_threshold": 0.8,
+    "human_required_threshold": 0.4
+  },
+  "audit": {
+    "log_dir": "audit"
+  },
+  "model": {
+    "opus_aot_threshold": 2
+  }
+}
+SETTINGS_EOF
 }
 
 # ---------------------------------------------------------------------------

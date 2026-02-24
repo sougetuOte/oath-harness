@@ -10,8 +10,9 @@ setup() {
     # Set up temp dir BEFORE sourcing common.sh so path constants use it
     TEST_TMP="$(mktemp -d)"
     export HARNESS_ROOT="${PROJECT_ROOT}"
-    export CONFIG_DIR="${TEST_TMP}"
-    export SETTINGS_FILE="${TEST_TMP}/settings.json"
+    export CONFIG_DIR="${TEST_TMP}/config"
+    export SETTINGS_FILE="${TEST_TMP}/config/settings.json"
+    mkdir -p "${TEST_TMP}/config"
 
     source "${PROJECT_ROOT}/lib/common.sh"
     source "${PROJECT_ROOT}/lib/config.sh"
@@ -24,7 +25,9 @@ teardown() {
 # --- config_load ---
 
 @test "config_load succeeds with valid settings.json" {
-    cp "${PROJECT_ROOT}/config/settings.json" "${SETTINGS_FILE}"
+    cat > "${SETTINGS_FILE}" <<'TCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TCFG
     run config_load
     assert_success
 }
@@ -38,7 +41,9 @@ teardown() {
 # --- config_get ---
 
 @test "config_get returns trust.initial_score from loaded config" {
-    cp "${PROJECT_ROOT}/config/settings.json" "${SETTINGS_FILE}"
+    cat > "${SETTINGS_FILE}" <<'TCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TCFG
     config_load
     run config_get "trust.initial_score"
     assert_success
@@ -46,7 +51,9 @@ teardown() {
 }
 
 @test "config_get returns risk.lambda1" {
-    cp "${PROJECT_ROOT}/config/settings.json" "${SETTINGS_FILE}"
+    cat > "${SETTINGS_FILE}" <<'TCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TCFG
     config_load
     run config_get "risk.lambda1"
     assert_success
@@ -54,7 +61,9 @@ teardown() {
 }
 
 @test "config_get returns risk.lambda2" {
-    cp "${PROJECT_ROOT}/config/settings.json" "${SETTINGS_FILE}"
+    cat > "${SETTINGS_FILE}" <<'TCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TCFG
     config_load
     run config_get "risk.lambda2"
     assert_success
@@ -62,7 +71,9 @@ teardown() {
 }
 
 @test "config_get returns autonomy.auto_approve_threshold" {
-    cp "${PROJECT_ROOT}/config/settings.json" "${SETTINGS_FILE}"
+    cat > "${SETTINGS_FILE}" <<'TCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TCFG
     config_load
     run config_get "autonomy.auto_approve_threshold"
     assert_success
@@ -70,7 +81,9 @@ teardown() {
 }
 
 @test "config_get returns null and warns for unknown key" {
-    cp "${PROJECT_ROOT}/config/settings.json" "${SETTINGS_FILE}"
+    cat > "${SETTINGS_FILE}" <<'TCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TCFG
     config_load
     run config_get "nonexistent.key"
     assert_success
@@ -98,7 +111,9 @@ EOF
 # --- config_validate ---
 
 @test "config_validate passes with valid settings" {
-    cp "${PROJECT_ROOT}/config/settings.json" "${SETTINGS_FILE}"
+    cat > "${SETTINGS_FILE}" <<'TCFG'
+{"trust":{"hibernation_days":14,"boost_threshold":20,"initial_score":0.3,"warmup_operations":5,"failure_decay":0.85},"risk":{"lambda1":0.6,"lambda2":0.4},"autonomy":{"auto_approve_threshold":0.8,"human_required_threshold":0.4},"audit":{"log_dir":"audit"},"model":{"opus_aot_threshold":2}}
+TCFG
     config_load
     run config_validate
     assert_success
