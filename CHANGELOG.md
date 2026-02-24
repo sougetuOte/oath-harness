@@ -19,11 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **settings.json simplified**: Only custom (non-default) values stored; defaults provided by code
 - **Skill renamed**: `lam-orchestrate` → `orchestrate`
 - **Test count**: 272 → 304 (241 unit + 63 integration)
+- **`/full-save` delegates to `/commit`**: Commit step now uses `/commit` for document-sync and logical grouping, eliminating duplicated logic
 
 ### Fixed
 
 - Phase 1 audit report: 16 Info-level items resolved (sourced annotations, variable naming, date compatibility notes)
 - `oath phase` escape sequence rendered as literal `\033[1m` instead of bold text
+- Tests isolated from production `config/settings.json` — all 17 test files now use inline default config instead of referencing production settings file
 
 ## [0.1.0] - 2026-02-23
 
