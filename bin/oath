@@ -1,0 +1,68 @@
+#!/bin/bash
+# oath — oath-harness status CLI entry point
+# Dispatches subcommands: status, audit, config, phase, help, version
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HARNESS_ROOT="${HARNESS_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+
+OATH_VERSION="0.1.0"
+
+# Check jq dependency
+command -v jq >/dev/null 2>&1 || { echo "Error: jq is required but not installed." >&2; exit 1; }
+
+# Source oath-harness lib modules
+source "${HARNESS_ROOT}/lib/common.sh"
+source "${HARNESS_ROOT}/lib/config.sh"
+source "${HARNESS_ROOT}/lib/trust-engine.sh"
+source "${HARNESS_ROOT}/lib/tool-profile.sh"
+
+# Source oath-status display modules
+source "${SCRIPT_DIR}/lib/format.sh"
+source "${SCRIPT_DIR}/lib/cmd-status.sh"
+source "${SCRIPT_DIR}/lib/cmd-audit.sh"
+source "${SCRIPT_DIR}/lib/cmd-config.sh"
+source "${SCRIPT_DIR}/lib/cmd-phase.sh"
+source "${SCRIPT_DIR}/lib/cmd-demo.sh"
+
+# Load configuration (non-fatal when settings.json is absent)
+config_load
+
+cmd_help() {
+    cat <<'EOF'
+Usage: oath [command] [options]
+
+Commands:
+  status [domain]   Show trust score summary, or detail for a domain
+  audit [--tail N]  Show recent audit log entries (default: last 10)
+  config            Show current configuration values
+  phase             Show current execution phase
+  demo              Run all commands with sample data
+  help              Show this help message
+  version           Show oath-harness version
+
+Examples:
+  oath                      # Show trust score summary
+  oath status file_read     # Show detail for the file_read domain
+  oath audit --tail 20      # Show last 20 audit entries
+EOF
+}
+
+cmd_version() {
+    echo "oath-harness v${OATH_VERSION}"
+}
+
+case "${1:-status}" in
+    status)  shift || true; cmd_status "$@" ;;
+    audit)   shift || true; cmd_audit "$@" ;;
+    config)  cmd_config ;;
+    phase)   cmd_phase ;;
+    demo)    cmd_demo ;;
+    help|-h|--help)    cmd_help ;;
+    version|--version|-v)  cmd_version ;;
+    *)
+        echo "Unknown command: $1" >&2
+        cmd_help >&2
+        exit 1
+        ;;
+esac
