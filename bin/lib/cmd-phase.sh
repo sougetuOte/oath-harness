@@ -6,5 +6,5 @@
 cmd_phase() {
     local phase
     phase="$(tpe_get_current_phase)"
-    printf "Current phase: %s%s%s\n" "${FMT_BOLD}" "$(echo "${phase}" | tr '[:lower:]' '[:upper:]')" "${FMT_RESET}"
+    printf "Current phase: ${FMT_BOLD}%s${FMT_RESET}\n" "$(echo "${phase}" | tr '[:lower:]' '[:upper:]')"
 }

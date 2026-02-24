@@ -146,6 +146,23 @@ When the phase is unknown or unset, oath-harness applies the most restrictive pr
 
 ---
 
+## oath CLI
+
+oath-harness includes a status visualization CLI. No installation beyond the harness itself is required.
+
+```bash
+bin/oath                      # Trust score summary
+bin/oath status file_read     # Domain detail with autonomy estimates
+bin/oath audit --tail 20      # Recent audit log entries
+bin/oath config               # Current configuration values
+bin/oath phase                # Current execution phase
+bin/oath demo                 # Run all commands with sample data
+```
+
+`oath demo` generates realistic sample data and runs every subcommand, useful for evaluating output without a live session.
+
+---
+
 ## Checking Trust Scores
 
 Trust scores are persisted between sessions in `state/trust-scores.json`:
@@ -259,7 +276,7 @@ These laws govern conflict resolution throughout the system. "Safe by default" i
 ## Testing
 
 ```bash
-bash tests/run-all-tests.sh  # 272 tests
+bash tests/run-all-tests.sh  # 304 tests
 ```
 
 To run unit tests and integration tests separately:

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **oath CLI** (`bin/oath`): Status visualization tool with subcommands — `status`, `audit`, `config`, `phase`, `demo`, `help`, `version`
+- **oath demo**: Runs all commands with generated sample data for quick evaluation without real state files
+- **32 oath-status tests**: Unit tests covering all CLI subcommands and display formatting
+
+### Changed
+
+- **settings.json simplified**: Only custom (non-default) values stored; defaults provided by code
+- **Skill renamed**: `lam-orchestrate` → `orchestrate`
+- **Test count**: 272 → 304 (241 unit + 63 integration)
+
+### Fixed
+
+- Phase 1 audit report: 16 Info-level items resolved (sourced annotations, variable naming, date compatibility notes)
+- `oath phase` escape sequence rendered as literal `\033[1m` instead of bold text
+
 ## [0.1.0] - 2026-02-23
 
 ### Added

@@ -110,6 +110,16 @@ hooks/
 ├── post-tool-use.sh # ツール実行後の信頼更新
 └── stop.sh          # セッション終了時の永続化
 
+bin/
+├── oath             # oath CLI エントリポイント（v0.1.0）
+└── lib/
+    ├── format.sh        # 色コード、スコア書式、テーブル、相対時刻
+    ├── cmd-status.sh    # status サブコマンド（サマリー / ドメイン詳細）
+    ├── cmd-audit.sh     # audit サブコマンド（監査ログ表示）
+    ├── cmd-config.sh    # config サブコマンド（設定値表示）
+    ├── cmd-phase.sh     # phase サブコマンド（現在フェーズ表示）
+    └── cmd-demo.sh      # demo サブコマンド（サンプルデータ生成＋全表示）
+
 install/
 ├── install.sh       # hooks登録・ディレクトリ作成
 └── uninstall.sh     # hooks登録解除・クリーンアップ
@@ -132,9 +142,9 @@ install/
 ### Testing
 
 ```bash
-bash tests/run-all-tests.sh    # 全テスト（272件）
-bash tests/run-unit-tests.sh   # 単体テスト（197件）
-bash tests/run-integration-tests.sh  # 統合テスト（61件）
+bash tests/run-all-tests.sh    # 全テスト（304件）
+bash tests/run-unit-tests.sh   # 単体テスト（241件）
+bash tests/run-integration-tests.sh  # 統合テスト（63件）
 ```
 
 - フレームワーク: bats-core（git submodule）
@@ -163,5 +173,6 @@ autonomy < 0.4        → human_required
 
 ## Development Status
 
-Phase 1 (MVP) — BUILDING Wave 5（ドキュメント・完成）
-全272テスト Green（単体209 + 統合63）
+Phase 1 (MVP) — 完了
+全304テスト（単体241 + 統合63）
+oath CLI（bin/oath）— status / audit / config / phase / demo

@@ -146,6 +146,23 @@ oath-harness は開発フェーズごとに異なるツール制限を適用し�
 
 ---
 
+## oath CLI
+
+oath-harness にはステータス可視化 CLI が含まれています。ハーネス本体以外の追加インストールは不要です。
+
+```bash
+bin/oath                      # 信頼スコアサマリー
+bin/oath status file_read     # ドメイン詳細と自律度推定
+bin/oath audit --tail 20      # 最近の監査ログエントリ
+bin/oath config               # 現在の設定値
+bin/oath phase                # 現在の実行フェーズ
+bin/oath demo                 # サンプルデータで全コマンドを実行
+```
+
+`oath demo` はリアルなサンプルデータを生成し、すべてのサブコマンドを実行します。ライブセッションなしで出力を確認するのに便利です。
+
+---
+
 ## 信頼スコアの確認
 
 信頼スコアは `state/trust-scores.json` にセッション間で永続化されます：
@@ -259,7 +276,7 @@ oath-harness の判定ロジックは、アシモフのロボット工学三原�
 ## テスト
 
 ```bash
-bash tests/run-all-tests.sh  # 272 テスト
+bash tests/run-all-tests.sh  # 304 テスト
 ```
 
 単体テストと統合テストを個別に実行：
