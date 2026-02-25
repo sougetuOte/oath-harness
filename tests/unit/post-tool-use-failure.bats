@@ -229,6 +229,36 @@ audit_file() {
     awk -v v="${trust_score_after}" 'BEGIN { exit !(v+0 == v) }'
 }
 
+# ============================================================
+# AC-PTF-9: is_error 検証 (A09)
+# ============================================================
+
+@test "is_error=false -> exit 0, no score change (skipped before bootstrap)" {
+    run_failure_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":false}'
+
+    # When is_error=false, the hook exits before bootstrap/trust update.
+    # trust-scores.json should not exist (no initialization happened).
+    [ ! -f "${TRUST_SCORES_FILE}" ]
+}
+
+@test "is_error=false -> no audit entry written" {
+    run_failure_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":false}'
+
+    local log
+    log="$(audit_file)"
+    # No audit entry should be written when skipping
+    [ ! -f "${log}" ]
+}
+
+@test "is_error absent -> score decays (default true, fail-safe)" {
+    # Existing behavior: no is_error field -> treated as failure (fail-safe for failure hook)
+    run_failure_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"}}'
+
+    local score
+    score="$(get_domain_score "file_read")"
+    awk -v s="${score}" 'BEGIN { exit !(s < 0.3) }'
+}
+
 @test "failure -> audit log contains session_id field" {
     run_failure_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"}}'
 

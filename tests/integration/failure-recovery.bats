@@ -23,6 +23,14 @@ TESTCFG
 
     echo "BUILDING" > "${OATH_PHASE_FILE}"
 
+    # Create Claude settings fixture with PostToolUseFailure hook registered
+    # (simulates normal installed state for delegation/double-fire tests)
+    mkdir -p "${TEST_TMP}/.claude"
+    cat > "${TEST_TMP}/.claude/settings.json" <<'HOOKSCFG'
+{"hooks":{"PostToolUseFailure":[{"matcher":"","hooks":[{"type":"command","command":"hooks/post-tool-use-failure.sh"}]}]}}
+HOOKSCFG
+    export OATH_CLAUDE_SETTINGS="${TEST_TMP}/.claude/settings.json"
+
     unset OATH_HARNESS_INITIALIZED
     unset OATH_HARNESS_SESSION_ID
 }
@@ -42,6 +50,7 @@ run_post() {
         CONFIG_DIR="${TEST_TMP}/config" \
         SETTINGS_FILE="${TEST_TMP}/config/settings.json" \
         OATH_PHASE_FILE="${TEST_TMP}/current-phase.md" \
+        OATH_CLAUDE_SETTINGS="${OATH_CLAUDE_SETTINGS:-}" \
         bash "${PROJECT_ROOT}/hooks/post-tool-use.sh"
 }
 

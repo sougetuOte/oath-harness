@@ -23,6 +23,20 @@ source "${HARNESS_ROOT}/lib/risk-mapper.sh"
 # shellcheck source=../lib/audit.sh
 source "${HARNESS_ROOT}/lib/audit.sh"
 
+# --- Feature detection ---
+# Check if PostToolUseFailure hook is registered in Claude Code settings.
+# When registered, failure score decay is delegated to that hook.
+# When not registered (older Claude Code or manual setup), PostToolUse handles it as fallback.
+_is_failure_hook_registered() {
+    local claude_settings="${OATH_CLAUDE_SETTINGS:-${HARNESS_ROOT}/.claude/settings.json}"
+    if [[ -f "${claude_settings}" ]]; then
+        jq -e '.hooks.PostToolUseFailure | length > 0' "${claude_settings}" >/dev/null 2>&1
+        return $?
+    else
+        return 1
+    fi
+}
+
 # --- Main flow ---
 
 # Step 1: Read stdin (pipe - can only read once)
@@ -71,10 +85,19 @@ if [[ "${outcome}" == "success" ]]; then
     atl_update_outcome "${session_id}" "${tool_name}" "success" "${trust_after}" || true
     log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=success trust_after=${trust_after}"
 else
-    # Phase 2a: PostToolUseFailure is responsible for score decay.
-    # PostToolUse records audit outcome only; trust_score_after left as null.
-    atl_update_outcome "${session_id}" "${tool_name}" "failure" "" || true
-    log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=failure (score update delegated to PostToolUseFailure)"
+    # Phase 2a: PostToolUseFailure is responsible for score decay when available.
+    # Fallback: if PostToolUseFailure hook is not registered, handle decay here.
+    # Note: tool_input_json is intentionally not passed to atl_update_outcome
+    # (asymmetric: detailed input analysis is in PreToolUse, not PostToolUse).
+    if _is_failure_hook_registered; then
+        atl_update_outcome "${session_id}" "${tool_name}" "failure" "" || true
+        log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=failure (score update delegated to PostToolUseFailure)"
+    else
+        te_record_failure "${domain}" || true
+        trust_after="$(te_get_score "${domain}")"
+        atl_update_outcome "${session_id}" "${tool_name}" "failure" "${trust_after}" || true
+        log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=failure trust_after=${trust_after} (fallback: PostToolUseFailure not registered)"
+    fi
 fi
 
 exit 0

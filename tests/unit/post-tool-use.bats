@@ -23,6 +23,14 @@ TESTCFG
 
     echo "BUILDING" > "${OATH_PHASE_FILE}"
 
+    # Create Claude settings fixture with PostToolUseFailure hook registered
+    # (simulates normal installed state for delegation tests)
+    mkdir -p "${TEST_TMP}/.claude"
+    cat > "${TEST_TMP}/.claude/settings.json" <<'HOOKSCFG'
+{"hooks":{"PostToolUseFailure":[{"matcher":"","hooks":[{"type":"command","command":"hooks/post-tool-use-failure.sh"}]}]}}
+HOOKSCFG
+    export OATH_CLAUDE_SETTINGS="${TEST_TMP}/.claude/settings.json"
+
     unset OATH_HARNESS_INITIALIZED
     unset OATH_HARNESS_SESSION_ID
 }
@@ -48,6 +56,7 @@ run_post_hook_env() {
         CONFIG_DIR="${TEST_TMP}/config" \
         SETTINGS_FILE="${TEST_TMP}/config/settings.json" \
         OATH_PHASE_FILE="${TEST_TMP}/current-phase.md" \
+        OATH_CLAUDE_SETTINGS="${OATH_CLAUDE_SETTINGS:-}" \
         bash "${PROJECT_ROOT}/hooks/post-tool-use.sh"
 }
 
@@ -282,6 +291,50 @@ audit_file() {
     local score
     score="$(get_domain_score "file_write")"
     awk -v s="${score}" 'BEGIN { exit !(s > 0.3) }'
+}
+
+# ============================================================
+# AC-012-8: PostToolUseFailure 未登録時のフォールバック
+# ============================================================
+
+@test "failure without PostToolUseFailure hook -> trust score DECREASES (fallback)" {
+    # Override Claude settings to NOT have PostToolUseFailure registered
+    mkdir -p "${TEST_TMP}/.claude-no-hooks"
+    echo '{"hooks":{}}' > "${TEST_TMP}/.claude-no-hooks/settings.json"
+    OATH_CLAUDE_SETTINGS="${TEST_TMP}/.claude-no-hooks/settings.json" \
+        run_post_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":true}'
+
+    local score
+    score="$(get_domain_score "file_read")"
+    # fallback: te_record_failure called, score should decrease
+    # 0.3 * 0.85 = 0.255
+    awk -v s="${score}" 'BEGIN { exit !(s < 0.3) }'
+}
+
+@test "failure without PostToolUseFailure hook -> audit trust_score_after is numeric" {
+    mkdir -p "${TEST_TMP}/.claude-no-hooks"
+    echo '{"hooks":{}}' > "${TEST_TMP}/.claude-no-hooks/settings.json"
+    OATH_CLAUDE_SETTINGS="${TEST_TMP}/.claude-no-hooks/settings.json" \
+        run_post_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":true}'
+
+    local log
+    log="$(audit_file)"
+    [ -f "${log}" ]
+    local trust_score_after
+    trust_score_after="$(jq -r '.trust_score_after' "${log}")"
+    # Fallback path: trust_score_after should be numeric (not null)
+    [ "${trust_score_after}" != "null" ]
+    awk -v v="${trust_score_after}" 'BEGIN { exit !(v+0 == v) }'
+}
+
+@test "failure without PostToolUseFailure hook (no settings) -> trust score DECREASES" {
+    # No Claude settings file at all
+    OATH_CLAUDE_SETTINGS="${TEST_TMP}/nonexistent-settings.json" \
+        run_post_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":true}'
+
+    local score
+    score="$(get_domain_score "file_read")"
+    awk -v s="${score}" 'BEGIN { exit !(s < 0.3) }'
 }
 
 @test "is_error=true with Bash failure -> score for correct domain UNCHANGED (delegated to PostToolUseFailure)" {
