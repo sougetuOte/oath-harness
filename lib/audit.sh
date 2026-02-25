@@ -12,6 +12,9 @@ readonly _ATL_SENSITIVE_PATTERN='API_KEY|SECRET|TOKEN|PASSWORD|PRIVATE_KEY|ACCES
 # Args: tool_input (JSON string)
 # Output: masked JSON (stdout)
 # Targets: keys matching API_KEY, SECRET, TOKEN, PASSWORD, PRIVATE_KEY, ACCESS_KEY
+# L1-I5: Requires jq 1.6+ for the walk() builtin function.
+# jq 1.5 and earlier do not include walk(). On such systems, masking silently
+# fails (returns empty via 2>/dev/null) and the fallback entry is written.
 # ---------------------------------------------------------------------------
 _atl_mask_sensitive() {
     local tool_input="$1"

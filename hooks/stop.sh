@@ -41,8 +41,11 @@ _stop_update_timestamp() {
     printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }
 
+# L2-I3: flock + || true is intentional — stop hook must never block session exit.
+# _stop_update_timestamp is the canonical updated_at writer (not te_flush).
 with_flock "${TRUST_SCORES_FILE}" 5 _stop_update_timestamp || true
 
+# Reserved for future buffered audit writes (currently no-op).
 atl_flush
 
 exit 0

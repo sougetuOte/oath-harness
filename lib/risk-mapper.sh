@@ -151,6 +151,10 @@ rcm_get_domain() {
 
 # --- Internal classification functions ---
 
+# L1-I4: Cannot detect external communication via language-level libraries
+# (e.g. python -c "import requests; ..."). Only explicit curl/wget/ssh
+# commands are caught. This is a known limitation — full language-level
+# analysis is out of scope for a shell-based classifier.
 _rcm_is_critical() {
     local tool_name="$1" cmd="$2" tool_input="$3"
 

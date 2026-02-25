@@ -41,6 +41,10 @@ te_calc_autonomy() {
     lambda1="$(config_get "risk.lambda1")"
     lambda2="$(config_get "risk.lambda2")"
 
+    # L1-I2: %.6g (6 significant digits) is intentionally different from
+    # trust-update.jq's round/100000 (5 decimal places). Autonomy uses
+    # significant digits for scientific-notation-safe output; trust scores
+    # use fixed decimals for human readability.
     awk -v t="${trust}" -v rv="${risk_value}" -v c="${complexity}" \
         -v l1="${lambda1}" -v l2="${lambda2}" \
         'BEGIN {
@@ -160,6 +164,8 @@ _te_record_success_impl() {
     recovery_boost_multiplier="$(_te_recovery_boost_multiplier)"
 
     local tmp
+    # L1-I1: --argjson fd 0 is unused in the success branch of trust-update.jq,
+    # but jq requires all referenced variables to be defined at parse time.
     tmp="$(jq --arg d "${domain}" --arg action "success" \
         --argjson bt "${boost_threshold}" --argjson fd 0 --arg now "${now}" \
         --argjson rb "${recovery_boost_multiplier}" \
@@ -219,7 +225,10 @@ _te_apply_time_decay_impl() {
     printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }
 
-# Flush trust scores to disk (final write at session end)
+# Flush trust scores to disk (write updated_at timestamp).
+# NOTE: Currently unused. The canonical updated_at writer is
+# _stop_update_timestamp in hooks/stop.sh (runs under flock).
+# Kept as public API for potential future callers.
 te_flush() {
     if [[ ! -f "${TRUST_SCORES_FILE}" ]]; then
         return 0

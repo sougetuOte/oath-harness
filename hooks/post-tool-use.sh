@@ -80,10 +80,14 @@ domain="$(rcm_get_domain "${tool_name}" "${tool_input_json}")"
 
 # Step 8: Update trust score and append audit outcome
 if [[ "${outcome}" == "success" ]]; then
-    te_record_success "${domain}" || true
-    trust_after="$(te_get_score "${domain}")"
+    # If te_record_success fails, record null instead of a stale pre-update score
+    if te_record_success "${domain}"; then
+        trust_after="$(te_get_score "${domain}")"
+    else
+        trust_after=""
+    fi
     atl_update_outcome "${session_id}" "${tool_name}" "success" "${trust_after}" || true
-    log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=success trust_after=${trust_after}"
+    log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=success trust_after=${trust_after:-null}"
 else
     # Phase 2a: PostToolUseFailure is responsible for score decay when available.
     # Fallback: if PostToolUseFailure hook is not registered, handle decay here.

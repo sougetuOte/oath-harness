@@ -25,6 +25,9 @@ check_prerequisites() {
     fi
 
     # Ensure hook scripts are executable
+    # L1-I6: chmod +x may cause git diff noise if the repo tracks execute bits.
+    # Prefer `git update-index --chmod=+x hooks/*.sh` during development to
+    # avoid repeated changes. The chmod here is a runtime safety net.
     for hook in pre-tool-use.sh post-tool-use.sh post-tool-use-failure.sh stop.sh; do
         chmod +x "${HARNESS_ROOT}/hooks/${hook}"
     done
