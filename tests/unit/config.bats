@@ -183,6 +183,70 @@ EOF
     assert_output --partial "failure_decay"
 }
 
+# --- Rule 5: recovery_boost_multiplier ---
+
+@test "config_validate fails when recovery_boost_multiplier < 1.0" {
+    cat > "${SETTINGS_FILE}" <<'EOF'
+{
+  "trust": { "initial_score": 0.3, "failure_decay": 0.85, "recovery_boost_multiplier": 0.5 },
+  "autonomy": { "auto_approve_threshold": 0.8, "human_required_threshold": 0.4 }
+}
+EOF
+    config_load
+    run config_validate
+    assert_failure
+    assert_output --partial "recovery_boost_multiplier"
+}
+
+@test "config_validate fails when recovery_boost_multiplier > 5.0" {
+    cat > "${SETTINGS_FILE}" <<'EOF'
+{
+  "trust": { "initial_score": 0.3, "failure_decay": 0.85, "recovery_boost_multiplier": 10.0 },
+  "autonomy": { "auto_approve_threshold": 0.8, "human_required_threshold": 0.4 }
+}
+EOF
+    config_load
+    run config_validate
+    assert_failure
+    assert_output --partial "recovery_boost_multiplier"
+}
+
+@test "config_validate passes with valid recovery_boost_multiplier" {
+    cat > "${SETTINGS_FILE}" <<'EOF'
+{
+  "trust": { "initial_score": 0.3, "failure_decay": 0.85, "recovery_boost_multiplier": 2.0 },
+  "autonomy": { "auto_approve_threshold": 0.8, "human_required_threshold": 0.4 }
+}
+EOF
+    config_load
+    run config_validate
+    assert_success
+}
+
+@test "config_validate passes with recovery_boost_multiplier at boundary 1.0" {
+    cat > "${SETTINGS_FILE}" <<'EOF'
+{
+  "trust": { "initial_score": 0.3, "failure_decay": 0.85, "recovery_boost_multiplier": 1.0 },
+  "autonomy": { "auto_approve_threshold": 0.8, "human_required_threshold": 0.4 }
+}
+EOF
+    config_load
+    run config_validate
+    assert_success
+}
+
+@test "config_validate passes with recovery_boost_multiplier at boundary 5.0" {
+    cat > "${SETTINGS_FILE}" <<'EOF'
+{
+  "trust": { "initial_score": 0.3, "failure_decay": 0.85, "recovery_boost_multiplier": 5.0 },
+  "autonomy": { "auto_approve_threshold": 0.8, "human_required_threshold": 0.4 }
+}
+EOF
+    config_load
+    run config_validate
+    assert_success
+}
+
 @test "config_validate fails when trust_score_override exists" {
     cat > "${SETTINGS_FILE}" <<'EOF'
 {

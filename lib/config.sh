@@ -110,5 +110,17 @@ config_validate() {
         return 1
     fi
 
+    # Rule 5: 1.0 <= recovery_boost_multiplier <= 5.0
+    local recovery_mult
+    recovery_mult="$(printf '%s' "${_OATH_CONFIG}" | jq -r '.trust.recovery_boost_multiplier // 1.5')"
+    if _float_cmp "${recovery_mult} < 1.0"; then
+        log_error "Validation failed: trust.recovery_boost_multiplier must be >= 1.0, got: ${recovery_mult}"
+        return 1
+    fi
+    if _float_cmp "${recovery_mult} > 5.0"; then
+        log_error "Validation failed: trust.recovery_boost_multiplier must be <= 5.0, got: ${recovery_mult}"
+        return 1
+    fi
+
     return 0
 }

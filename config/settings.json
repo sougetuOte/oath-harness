@@ -1,6 +1,5 @@
 {
   "trust": {
-    "initial_score": 0.1,
-    "recovery_boost_multiplier": 1.5
+    "initial_score": 0.3
   }
 }
