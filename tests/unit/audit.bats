@@ -413,3 +413,48 @@ teardown() {
     run atl_flush
     assert_success
 }
+
+# ============================================================
+# T5: complexity フィールド追加 (FR-CX-003)
+# ============================================================
+
+@test "T5: atl_append_pre records complexity field when provided" {
+    atl_append_pre \
+        "sess-cx" "Bash" '{"command":"rm /tmp/test"}' \
+        "shell_exec" "high" "0.5" "0.45" "logged_only" \
+        "sonnet" "building" "0.7"
+
+    local today
+    today="$(date -u '+%Y-%m-%d')"
+    local entry
+    entry="$(tail -1 "${AUDIT_DIR}/${today}.jsonl")"
+
+    [ "$(echo "${entry}" | jq -r '.complexity')" = "0.7" ]
+}
+
+@test "T5: atl_append_pre defaults complexity to 0.5 when not provided" {
+    atl_append_pre \
+        "sess-cx-default" "Read" '{"file_path":"/tmp/x"}' \
+        "file_read" "low" "0.5" "0.75" "auto_approved"
+
+    local today
+    today="$(date -u '+%Y-%m-%d')"
+    local entry
+    entry="$(tail -1 "${AUDIT_DIR}/${today}.jsonl")"
+
+    [ "$(echo "${entry}" | jq -r '.complexity')" = "0.5" ]
+}
+
+@test "T5: atl_append_pre with complexity=0.2 for low-risk" {
+    atl_append_pre \
+        "sess-cx-low" "Read" '{"file_path":"/tmp/y"}' \
+        "file_read" "low" "0.6" "0.80" "auto_approved" \
+        "haiku" "building" "0.2"
+
+    local today
+    today="$(date -u '+%Y-%m-%d')"
+    local entry
+    entry="$(tail -1 "${AUDIT_DIR}/${today}.jsonl")"
+
+    [ "$(echo "${entry}" | jq -r '.complexity')" = "0.2" ]
+}

@@ -25,7 +25,7 @@ check_prerequisites() {
     fi
 
     # Ensure hook scripts are executable
-    for hook in pre-tool-use.sh post-tool-use.sh stop.sh; do
+    for hook in pre-tool-use.sh post-tool-use.sh post-tool-use-failure.sh stop.sh; do
         chmod +x "${HARNESS_ROOT}/hooks/${hook}"
     done
 }
@@ -37,6 +37,7 @@ install_hooks() {
 
     local pre_hook="${HARNESS_ROOT}/hooks/pre-tool-use.sh"
     local post_hook="${HARNESS_ROOT}/hooks/post-tool-use.sh"
+    local failure_hook="${HARNESS_ROOT}/hooks/post-tool-use-failure.sh"
     local stop_hook="${HARNESS_ROOT}/hooks/stop.sh"
 
     if [ -f "${CLAUDE_SETTINGS}" ]; then
@@ -49,10 +50,12 @@ install_hooks() {
         # Merge into existing settings
         jq --arg pre "${pre_hook}" \
            --arg post "${post_hook}" \
+           --arg failure "${failure_hook}" \
            --arg stop "${stop_hook}" \
         'def remove_cmd($cmd): map(select((.hooks // []) | all(.command != $cmd)));
         .hooks.PreToolUse = ((.hooks.PreToolUse // [] | remove_cmd($pre)) + [{"matcher":"","hooks":[{"type":"command","command":$pre}]}])
         | .hooks.PostToolUse = ((.hooks.PostToolUse // [] | remove_cmd($post)) + [{"matcher":"","hooks":[{"type":"command","command":$post}]}])
+        | .hooks.PostToolUseFailure = ((.hooks.PostToolUseFailure // [] | remove_cmd($failure)) + [{"matcher":"","hooks":[{"type":"command","command":$failure}]}])
         | .hooks.Stop = ((.hooks.Stop // [] | remove_cmd($stop)) + [{"hooks":[{"type":"command","command":$stop}]}])' \
         "${CLAUDE_SETTINGS}" > "${CLAUDE_SETTINGS}.tmp" \
         && mv "${CLAUDE_SETTINGS}.tmp" "${CLAUDE_SETTINGS}"
@@ -60,11 +63,13 @@ install_hooks() {
         # Create new settings file
         jq -n --arg pre "${pre_hook}" \
               --arg post "${post_hook}" \
+              --arg failure "${failure_hook}" \
               --arg stop "${stop_hook}" \
         '{
           "hooks": {
             "PreToolUse": [{"matcher":"","hooks":[{"type":"command","command":$pre}]}],
             "PostToolUse": [{"matcher":"","hooks":[{"type":"command","command":$post}]}],
+            "PostToolUseFailure": [{"matcher":"","hooks":[{"type":"command","command":$failure}]}],
             "Stop": [{"hooks":[{"type":"command","command":$stop}]}]
           }
         }' > "${CLAUDE_SETTINGS}"

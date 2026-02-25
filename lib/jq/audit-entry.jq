@@ -13,7 +13,8 @@
 #      --arg outcome "pending" \
 #      --argjson trust_score_after null \
 #      --arg recommended_model "sonnet" \
-#      --arg phase "building"
+#      --arg phase "building" \
+#      --argjson complexity 0.5
 
 {
   timestamp:          $timestamp,
@@ -24,6 +25,7 @@
   risk_category:      $risk_category,
   trust_score_before: $trust_score_before,
   autonomy_score:     $autonomy_score,
+  complexity:         $complexity,
   decision:           $decision,
   outcome:            $outcome,
   trust_score_after:  $trust_score_after,

@@ -415,3 +415,201 @@ EOF
     [[ "${status}" -eq 0 ]]
     [[ "${output}" == *"demo complete"* ]]
 }
+
+# =========================================================================
+# T11: cmd-demo.sh Phase 2a シナリオ テスト
+# =========================================================================
+
+@test "demo: Phase 2a scenarios header is shown" {
+    run cmd_demo
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Phase 2a"* ]]
+}
+
+@test "demo: scenario 1 normal growth runs without error" {
+    run demo_scenario_normal_growth
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Scenario 1"* ]]
+}
+
+@test "demo: scenario 1 shows step table with score and autonomy columns" {
+    run demo_scenario_normal_growth
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Score"* ]]
+    [[ "${output}" == *"Autonomy"* ]]
+    [[ "${output}" == *"Decision"* ]]
+}
+
+@test "demo: scenario 2 failure recovery runs without error" {
+    run demo_scenario_failure_recovery
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Scenario 2"* ]]
+}
+
+@test "demo: scenario 2 shows Recovering column" {
+    run demo_scenario_failure_recovery
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Recovering"* ]]
+}
+
+@test "demo: scenario 3 complexity compare runs without error" {
+    run demo_scenario_complexity_compare
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Scenario 3"* ]]
+}
+
+@test "demo: scenario 3 shows Phase 1 vs Phase 2a comparison" {
+    run demo_scenario_complexity_compare
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Phase 1"* ]]
+    [[ "${output}" == *"Phase 2a"* ]]
+}
+
+@test "demo: scenario 4 consecutive fail runs without error" {
+    run demo_scenario_consecutive_fail
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Scenario 4"* ]]
+}
+
+@test "demo: scenario 4 shows Consec column" {
+    run demo_scenario_consecutive_fail
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Consec"* ]]
+}
+
+@test "demo: scenario 4 mentions Phase 2b Self-Escalation" {
+    run demo_scenario_consecutive_fail
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Phase 2b"* ]]
+}
+
+@test "demo: scenarios do not modify real trust-scores.json" {
+    local orig_trust="${TRUST_SCORES_FILE}"
+    run demo_scenario_normal_growth
+    [[ "${status}" -eq 0 ]]
+    [[ ! -f "${orig_trust}" ]]
+}
+
+@test "demo: Phase 2a scenario output included in full demo" {
+    run cmd_demo
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Scenario 1"* ]]
+    [[ "${output}" == *"Scenario 2"* ]]
+    [[ "${output}" == *"Scenario 3"* ]]
+    [[ "${output}" == *"Scenario 4"* ]]
+}
+
+# =========================================================================
+# T9: cmd-status.sh Phase 2a new fields (consecutive_failures, is_recovering)
+# =========================================================================
+
+# Helper: create trust-scores.json with Phase 2a fields (recovering domain)
+_create_phase2a_scores_recovering() {
+    cat > "${TRUST_SCORES_FILE}" <<'EOF'
+{
+  "version": "2",
+  "updated_at": "2026-02-25T10:00:00Z",
+  "global_operation_count": 20,
+  "domains": {
+    "_global": {
+      "score": 0.30,
+      "successes": 0,
+      "failures": 0,
+      "total_operations": 0,
+      "last_operated_at": "2026-02-25T10:00:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
+    },
+    "shell_exec": {
+      "score": 0.45,
+      "successes": 8,
+      "failures": 3,
+      "total_operations": 11,
+      "last_operated_at": "2026-02-25T09:50:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0,
+      "consecutive_failures": 2,
+      "pre_failure_score": 0.52,
+      "is_recovering": true
+    }
+  }
+}
+EOF
+}
+
+# Helper: create trust-scores.json with Phase 2a fields (not recovering domain)
+_create_phase2a_scores_not_recovering() {
+    cat > "${TRUST_SCORES_FILE}" <<'EOF'
+{
+  "version": "2",
+  "updated_at": "2026-02-25T10:00:00Z",
+  "global_operation_count": 10,
+  "domains": {
+    "_global": {
+      "score": 0.30,
+      "successes": 0,
+      "failures": 0,
+      "total_operations": 0,
+      "last_operated_at": "2026-02-25T10:00:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
+    },
+    "file_read": {
+      "score": 0.72,
+      "successes": 20,
+      "failures": 0,
+      "total_operations": 20,
+      "last_operated_at": "2026-02-25T09:55:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
+    }
+  }
+}
+EOF
+}
+
+# Test T9-1: consecutive_failures > 0 の場合に "Consecutive:" が表示される
+@test "status: domain detail shows Consecutive field when consecutive_failures > 0" {
+    _create_phase2a_scores_recovering
+    run cmd_status "shell_exec"
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Consecutive:"* ]]
+    [[ "${output}" == *"2"* ]]
+}
+
+# Test T9-2: is_recovering == true の場合に "Recovering: yes → {target}" が表示される
+@test "status: domain detail shows Recovering yes with target when is_recovering=true" {
+    _create_phase2a_scores_recovering
+    run cmd_status "shell_exec"
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Recovering:"* ]]
+    [[ "${output}" == *"yes"* ]]
+    [[ "${output}" == *"0.52"* ]]
+}
+
+# Test T9-3: is_recovering == false の場合に "Recovering: no" が表示される
+@test "status: domain detail shows Recovering no when is_recovering=false" {
+    _create_phase2a_scores_not_recovering
+    run cmd_status "file_read"
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"Recovering:"* ]]
+    [[ "${output}" == *"no"* ]]
+}
+
+# Test T9-4: Phase 1 形式（新フィールドなし）でもエラーにならない
+@test "status: domain detail works without Phase 2a fields (Phase 1 data)" {
+    _create_multi_domain_scores
+    run cmd_status "shell_exec"
+    [[ "${status}" -eq 0 ]]
+    [[ "${output}" == *"shell_exec"* ]]
+    [[ "${output}" == *"0.51"* ]]
+}

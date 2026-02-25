@@ -38,6 +38,9 @@ sb_ensure_initialized() {
     # Apply time decay to all domains
     te_apply_time_decay
 
+    # Backfill Phase 2a fields for any domain that lacks them
+    _sb_ensure_phase2a_fields
+
     return 0
 }
 
@@ -70,10 +73,34 @@ _sb_create_default() {
                 total_operations: 0,
                 last_operated_at: $t,
                 is_warming_up: false,
-                warmup_remaining: 0
+                warmup_remaining: 0,
+                consecutive_failures: 0,
+                pre_failure_score: null,
+                is_recovering: false
             }
         }
     }' > "${TRUST_SCORES_FILE}"
+}
+
+# Backfill Phase 2a fields for all domains that lack them
+# Adds consecutive_failures, pre_failure_score, is_recovering with defaults.
+# Idempotent: existing values are preserved.
+_sb_ensure_phase2a_fields() {
+    if [[ ! -f "${TRUST_SCORES_FILE}" ]]; then
+        return 0
+    fi
+
+    local tmp
+    tmp="$(jq '
+        .domains |= with_entries(
+            .value += {
+                consecutive_failures: (.value.consecutive_failures // 0),
+                pre_failure_score: (.value.pre_failure_score // null),
+                is_recovering: (.value.is_recovering // false)
+            }
+        )
+    ' "${TRUST_SCORES_FILE}")"
+    printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }
 
 # Migrate v1 format to v2

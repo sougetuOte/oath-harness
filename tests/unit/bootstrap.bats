@@ -122,3 +122,136 @@ EOF
     sid2="$(sb_get_session_id)"
     assert_equal "${sid1}" "${sid2}"
 }
+
+# ---------------------------------------------------------------------------
+# Phase 2a field backfill tests
+# ---------------------------------------------------------------------------
+
+@test "sb_ensure_initialized backfills phase2a fields for phase1 format domain" {
+    # Phase 1 format: domains have no consecutive_failures, pre_failure_score, is_recovering
+    cat > "${TRUST_SCORES_FILE}" <<'EOF'
+{
+  "version": "2",
+  "updated_at": "2026-02-20T00:00:00Z",
+  "global_operation_count": 10,
+  "domains": {
+    "_global": {
+      "score": 0.5,
+      "successes": 10,
+      "failures": 0,
+      "total_operations": 10,
+      "last_operated_at": "2026-02-20T00:00:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0
+    }
+  }
+}
+EOF
+    sb_ensure_initialized
+
+    local cf pfs ir
+    cf="$(jq -r '.domains._global.consecutive_failures' "${TRUST_SCORES_FILE}")"
+    pfs="$(jq -r '.domains._global.pre_failure_score' "${TRUST_SCORES_FILE}")"
+    ir="$(jq -r '.domains._global.is_recovering' "${TRUST_SCORES_FILE}")"
+
+    assert_equal "${cf}" "0"
+    assert_equal "${pfs}" "null"
+    assert_equal "${ir}" "false"
+}
+
+@test "sb_ensure_initialized preserves existing phase2a field values" {
+    cat > "${TRUST_SCORES_FILE}" <<'EOF'
+{
+  "version": "2",
+  "updated_at": "2026-02-20T00:00:00Z",
+  "global_operation_count": 30,
+  "domains": {
+    "_global": {
+      "score": 0.4,
+      "successes": 25,
+      "failures": 5,
+      "total_operations": 30,
+      "last_operated_at": "2026-02-20T00:00:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0,
+      "consecutive_failures": 3,
+      "pre_failure_score": 0.7,
+      "is_recovering": true
+    }
+  }
+}
+EOF
+    sb_ensure_initialized
+
+    local cf pfs ir
+    cf="$(jq -r '.domains._global.consecutive_failures' "${TRUST_SCORES_FILE}")"
+    pfs="$(jq -r '.domains._global.pre_failure_score' "${TRUST_SCORES_FILE}")"
+    ir="$(jq -r '.domains._global.is_recovering' "${TRUST_SCORES_FILE}")"
+
+    assert_equal "${cf}" "3"
+    assert_equal "${pfs}" "0.7"
+    assert_equal "${ir}" "true"
+}
+
+@test "sb_ensure_initialized backfills phase2a fields for all domains" {
+    cat > "${TRUST_SCORES_FILE}" <<'EOF'
+{
+  "version": "2",
+  "updated_at": "2026-02-20T00:00:00Z",
+  "global_operation_count": 80,
+  "domains": {
+    "_global": {
+      "score": 0.5,
+      "successes": 40,
+      "failures": 2,
+      "total_operations": 42,
+      "last_operated_at": "2026-02-20T00:00:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0
+    },
+    "file_read": {
+      "score": 0.75,
+      "successes": 35,
+      "failures": 1,
+      "total_operations": 36,
+      "last_operated_at": "2026-02-20T00:00:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0
+    },
+    "shell_exec": {
+      "score": 0.4,
+      "successes": 20,
+      "failures": 5,
+      "total_operations": 25,
+      "last_operated_at": "2026-02-20T00:00:00Z",
+      "is_warming_up": false,
+      "warmup_remaining": 0
+    }
+  }
+}
+EOF
+    sb_ensure_initialized
+
+    # All three domains must have the new fields
+    local domains="_global file_read shell_exec"
+    for domain in ${domains}; do
+        local cf
+        cf="$(jq -r --arg d "${domain}" '.domains[$d].consecutive_failures' "${TRUST_SCORES_FILE}")"
+        assert_equal "${cf}" "0" "domain ${domain}: consecutive_failures should be 0"
+
+        local pfs
+        pfs="$(jq -r --arg d "${domain}" '.domains[$d].pre_failure_score' "${TRUST_SCORES_FILE}")"
+        assert_equal "${pfs}" "null" "domain ${domain}: pre_failure_score should be null"
+
+        local ir
+        ir="$(jq -r --arg d "${domain}" '.domains[$d].is_recovering' "${TRUST_SCORES_FILE}")"
+        assert_equal "${ir}" "false" "domain ${domain}: is_recovering should be false"
+    done
+}
+
+@test "_sb_ensure_phase2a_fields does nothing when trust-scores.json is absent" {
+    rm -f "${TRUST_SCORES_FILE}"
+    # Must not error even when file does not exist
+    _sb_ensure_phase2a_fields
+    assert [ ! -f "${TRUST_SCORES_FILE}" ]
+}

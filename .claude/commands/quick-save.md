@@ -28,6 +28,17 @@
 - 現在のgitブランチ
 - 関連するSPEC/ADR/設計書ファイル名
 
+### Trust State
+- `config/trust-scores.json` が存在する場合:
+  - Global Operations: (global_operation_count の値)
+  - Session Operations: (session_operation_count の値)
+  - Domains: 各ドメインを以下の形式で列挙
+    - (domain_name): (score) (successes: N, failures: N)
+    - 回復中の場合は末尾に `[RECOVERING → (recovery_target)]` を追加
+  - 回復中ドメインがある場合: Recovering セクションにドメイン名・target・consecutive_failures を記載
+- `config/trust-scores.json` が存在しない場合:
+  - 「未初期化」と記載
+
 ## 2. 完了報告
 
 以下を表示:

@@ -86,7 +86,9 @@ audit_file() {
 }
 
 # ============================================================
-# AC-012-2: ツール実行失敗 (is_error=true) -> exit 0 + スコア減衰
+# AC-012-2: ツール実行失敗 (is_error=true) -> exit 0 + スコア変化なし
+# Phase 2a: 失敗処理は PostToolUseFailure に委譲
+# PostToolUse 側では audit outcome 更新のみ行い、スコア更新はスキップ
 # ============================================================
 
 @test "failure result (is_error=true) -> exit 0" {
@@ -94,27 +96,42 @@ audit_file() {
     assert_success
 }
 
-@test "failure result (is_error=true) -> trust score decreases" {
+@test "failure result (is_error=true) -> trust score UNCHANGED (delegated to PostToolUseFailure)" {
     run_post_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":true}'
 
-    # failure_decay=0.85, new_score = 0.3 * 0.85 = 0.255
+    # Phase 2a: PostToolUse does NOT call te_record_failure
+    # Score should remain at initial value 0.3
     local score
     score="$(get_domain_score "file_read")"
-    # score should be less than 0.3
-    awk -v s="${score}" 'BEGIN { exit !(s < 0.3) }'
-}
-
-@test "failure result (is_error=true) -> score approximately 0.255" {
-    run_post_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":true}'
-
-    local score
-    score="$(get_domain_score "file_read")"
-    # 0.3 * 0.85 = 0.255 (allow small float tolerance)
     awk -v s="${score}" 'BEGIN {
-        diff = s - 0.255
+        diff = s - 0.3
         if (diff < 0) diff = -diff
         exit !(diff < 0.001)
     }'
+}
+
+@test "failure result (is_error=true) -> audit outcome=failure recorded" {
+    run_post_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":true}'
+
+    local log
+    log="$(audit_file)"
+    [ -f "${log}" ]
+    local outcome
+    outcome="$(jq -r '.outcome' "${log}")"
+    [ "${outcome}" = "failure" ]
+}
+
+@test "failure result (is_error=true) -> audit trust_score_after is null (score not updated)" {
+    run_post_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":true}'
+
+    local log
+    log="$(audit_file)"
+    [ -f "${log}" ]
+    # PostToolUse side: trust_score_after should be null
+    # (actual score update is done by PostToolUseFailure)
+    local trust_score_after
+    trust_score_after="$(jq -r '.trust_score_after' "${log}")"
+    [ "${trust_score_after}" = "null" ]
 }
 
 # ============================================================
@@ -267,11 +284,17 @@ audit_file() {
     awk -v s="${score}" 'BEGIN { exit !(s > 0.3) }'
 }
 
-@test "is_error=true with Bash failure updates score for correct domain" {
+@test "is_error=true with Bash failure -> score for correct domain UNCHANGED (delegated to PostToolUseFailure)" {
     run_post_hook_env '{"tool_name":"Bash","tool_input":{"command":"ls"},"is_error":true}'
 
+    # Phase 2a: PostToolUse does NOT update score on failure
     # ls maps to file_read domain via rcm_get_domain
     local score
     score="$(get_domain_score "file_read")"
-    awk -v s="${score}" 'BEGIN { exit !(s < 0.3) }'
+    # score should remain at initial 0.3
+    awk -v s="${score}" 'BEGIN {
+        diff = s - 0.3
+        if (diff < 0) diff = -diff
+        exit !(diff < 0.001)
+    }'
 }

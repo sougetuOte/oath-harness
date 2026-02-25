@@ -78,7 +78,7 @@ _atl_flock_append() {
 # Append initial audit entry at PreToolUse time
 # Args: session_id, tool_name, tool_input(JSON), domain, risk_category,
 #        trust_score_before, autonomy_score, decision,
-#        recommended_model, phase
+#        recommended_model, phase, complexity
 # Side effect: appends 1 line to audit/YYYY-MM-DD.jsonl
 # ---------------------------------------------------------------------------
 atl_append_pre() {
@@ -92,6 +92,7 @@ atl_append_pre() {
     local decision="$8"
     local recommended_model="${9:-unknown}"
     local phase="${10:-unknown}"
+    local complexity="${11:-0.5}"
 
     local timestamp
     timestamp="$(now_iso8601)"
@@ -138,6 +139,7 @@ atl_append_pre() {
         --argjson trust_score_after "null" \
         --arg recommended_model "${recommended_model}" \
         --arg phase "${phase}" \
+        --argjson complexity "${complexity}" \
     )" 2>/dev/null
 
     if [[ -z "${entry}" ]]; then
@@ -156,13 +158,15 @@ atl_append_pre() {
 # ---------------------------------------------------------------------------
 # atl_update_outcome
 # Append outcome entry at PostToolUse time (new line with outcome + trust_score_after)
-# Args: session_id, tool_name, outcome(success|failure), trust_score_after
+# Args: session_id, tool_name, outcome(success|failure), trust_score_after (optional)
+# Note: trust_score_after defaults to empty string which is recorded as JSON null.
+#       PostToolUse(failure) passes "" to delegate score update to PostToolUseFailure.
 # ---------------------------------------------------------------------------
 atl_update_outcome() {
     local session_id="$1"
     local tool_name="$2"
     local outcome="$3"
-    local trust_score_after="$4"
+    local trust_score_after="${4:-}"
 
     local timestamp
     timestamp="$(now_iso8601)"
@@ -173,6 +177,14 @@ atl_update_outcome() {
     local log_file
     log_file="$(_atl_audit_file)"
 
+    # Normalize trust_score_after: empty string becomes JSON null
+    local trust_score_json
+    if [[ -z "${trust_score_after}" ]]; then
+        trust_score_json="null"
+    else
+        trust_score_json="${trust_score_after}"
+    fi
+
     # Build one compact outcome entry and append
     local entry
     entry="$(jq -cn \
@@ -180,7 +192,7 @@ atl_update_outcome() {
         --arg session_id "${session_id}" \
         --arg tool_name "${tool_name}" \
         --arg outcome "${outcome}" \
-        --argjson trust_score_after "${trust_score_after}" \
+        --argjson trust_score_after "${trust_score_json}" \
         '{
             timestamp:         $timestamp,
             session_id:        $session_id,

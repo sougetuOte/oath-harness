@@ -213,3 +213,76 @@ teardown() {
     matcher="$(jq -r '.hooks.PostToolUse[0].matcher' "${settings}")"
     [ "${matcher}" = "" ]
 }
+
+# ============================================================
+# install.sh: PostToolUseFailure hook registration
+# ============================================================
+
+@test "install.sh registers PostToolUseFailure hook with absolute path" {
+    bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}" > /dev/null
+
+    local settings="${TEST_PROJECT}/.claude/settings.json"
+    local failure_cmd
+    failure_cmd="$(jq -r '.hooks.PostToolUseFailure[0].hooks[0].command' "${settings}")"
+
+    [[ "${failure_cmd}" == /* ]]
+    [[ "${failure_cmd}" == */hooks/post-tool-use-failure.sh ]]
+}
+
+@test "PostToolUseFailure matcher is empty string (matches all tools)" {
+    bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}" > /dev/null
+
+    local settings="${TEST_PROJECT}/.claude/settings.json"
+    local matcher
+    matcher="$(jq -r '.hooks.PostToolUseFailure[0].matcher' "${settings}")"
+    [ "${matcher}" = "" ]
+}
+
+@test "install.sh makes post-tool-use-failure.sh executable" {
+    bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}" > /dev/null
+
+    [ -x "${PROJECT_ROOT}/hooks/post-tool-use-failure.sh" ]
+}
+
+@test "install.sh is idempotent for PostToolUseFailure" {
+    bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}" > /dev/null
+    bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}" > /dev/null
+
+    local settings="${TEST_PROJECT}/.claude/settings.json"
+    jq '.' "${settings}" > /dev/null 2>&1
+
+    # Should have exactly one PostToolUseFailure entry
+    local count
+    count="$(jq '.hooks.PostToolUseFailure | length' "${settings}")"
+    [ "${count}" -eq 1 ]
+}
+
+@test "uninstall.sh removes PostToolUseFailure hook from settings" {
+    bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}" > /dev/null
+    bash "${PROJECT_ROOT}/install/uninstall.sh" "${TEST_PROJECT}" > /dev/null
+
+    local settings="${TEST_PROJECT}/.claude/settings.json"
+
+    # PostToolUseFailure hook should be removed
+    local failure
+    failure="$(jq -r '.hooks.PostToolUseFailure // "removed"' "${settings}")"
+    [ "${failure}" = "removed" ]
+}
+
+@test "install.sh preserves PreToolUse PostToolUse Stop when adding PostToolUseFailure" {
+    bash "${PROJECT_ROOT}/install/install.sh" "${TEST_PROJECT}" > /dev/null
+
+    local settings="${TEST_PROJECT}/.claude/settings.json"
+
+    # All four hook types must be present
+    local pre_cmd post_cmd stop_cmd failure_cmd
+    pre_cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "${settings}")"
+    post_cmd="$(jq -r '.hooks.PostToolUse[0].hooks[0].command' "${settings}")"
+    stop_cmd="$(jq -r '.hooks.Stop[0].hooks[0].command' "${settings}")"
+    failure_cmd="$(jq -r '.hooks.PostToolUseFailure[0].hooks[0].command' "${settings}")"
+
+    [[ "${pre_cmd}" == */hooks/pre-tool-use.sh ]]
+    [[ "${post_cmd}" == */hooks/post-tool-use.sh ]]
+    [[ "${stop_cmd}" == */hooks/stop.sh ]]
+    [[ "${failure_cmd}" == */hooks/post-tool-use-failure.sh ]]
+}

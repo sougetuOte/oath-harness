@@ -62,7 +62,9 @@ domain="$(rcm_get_domain "${tool_name}" "${tool_input_json}")"
 
 # Step 7-9: Classify risk and parse result
 risk_result="$(rcm_classify "${tool_name}" "${tool_input_json}")"
-read -r risk_category risk_value <<< "${risk_result}"
+read -r risk_category risk_value complexity <<< "${risk_result}"
+# Fallback: complexity empty means rcm_classify did not return it
+complexity="${complexity:-0.5}"
 
 # Step 10: Get current phase
 phase="$(tpe_get_current_phase)"
@@ -84,7 +86,8 @@ if [[ "${profile_result}" == "blocked" ]]; then
         "0" \
         "blocked" \
         "unknown" \
-        "${phase}" || true
+        "${phase}" \
+        "${complexity}" || true
     echo "oath-harness: [BLOCKED] tool=${tool_name} domain=${domain} phase=${phase} reason=phase_policy - ${phase} phase does not allow ${domain} operations" >&2
     exit 1
 fi
@@ -92,14 +95,20 @@ fi
 # Step 13: Get trust score
 trust="$(te_get_score "${domain}")"
 
-# Step 14: Calculate autonomy
-autonomy="$(te_calc_autonomy "${trust}" "${risk_value}")"
+# Step 14: Calculate autonomy (with dynamic complexity from rcm_classify)
+autonomy="$(te_calc_autonomy "${trust}" "${risk_value}" "${complexity}")"
 
 # Step 15: Make decision
 decision="$(te_decide "${autonomy}" "${risk_category}")"
 
 # Step 16: Recommend model (recorded in audit trail)
 recommended_model="$(mr_recommend "${autonomy}" "${risk_category}" "${trust}" "${decision}")"
+
+# Step 16b: updatedInput preparation (Phase 2a: log only, FR-HK-009)
+# Phase 2b will inject model into updatedInput JSON output
+if [[ "${tool_name}" == "Task" ]]; then
+    log_debug "pre-tool-use: model_recommendation for Task: ${recommended_model}"
+fi
 
 # Step 17: Append audit log
 # || true: audit failure is non-fatal; the access decision takes priority
@@ -113,9 +122,10 @@ atl_append_pre \
     "${autonomy}" \
     "${decision}" \
     "${recommended_model}" \
-    "${phase}" || true
+    "${phase}" \
+    "${complexity}" || true
 
-log_debug "pre-tool-use: tool=${tool_name} domain=${domain} risk=${risk_category} trust=${trust} autonomy=${autonomy} decision=${decision} model=${recommended_model}"
+log_debug "pre-tool-use: tool=${tool_name} domain=${domain} risk=${risk_category} complexity=${complexity} trust=${trust} autonomy=${autonomy} decision=${decision} model=${recommended_model}"
 
 # Step 18: Act on decision
 case "${decision}" in

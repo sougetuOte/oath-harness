@@ -23,9 +23,11 @@ jq --arg root "${HARNESS_ROOT}" '
         end;
     .hooks.PreToolUse = (.hooks.PreToolUse // [] | remove_oath($root))
     | .hooks.PostToolUse = (.hooks.PostToolUse // [] | remove_oath($root))
+    | .hooks.PostToolUseFailure = (.hooks.PostToolUseFailure // [] | remove_oath($root))
     | .hooks.Stop = (.hooks.Stop // [] | remove_oath($root))
     | if .hooks.PreToolUse == [] then del(.hooks.PreToolUse) else . end
     | if .hooks.PostToolUse == [] then del(.hooks.PostToolUse) else . end
+    | if .hooks.PostToolUseFailure == [] then del(.hooks.PostToolUseFailure) else . end
     | if .hooks.Stop == [] then del(.hooks.Stop) else . end
 ' "${CLAUDE_SETTINGS}" > "${CLAUDE_SETTINGS}.tmp" \
 && mv "${CLAUDE_SETTINGS}.tmp" "${CLAUDE_SETTINGS}"

@@ -51,6 +51,20 @@ run_post() {
         bash "${PROJECT_ROOT}/hooks/post-tool-use.sh"
 }
 
+# Helper: run post-tool-use-failure hook (Phase 2a: failure score update delegated here)
+run_post_failure() {
+    local json="$1"
+    echo "${json}" | \
+        HARNESS_ROOT="${PROJECT_ROOT}" \
+        STATE_DIR="${TEST_TMP}" \
+        TRUST_SCORES_FILE="${TEST_TMP}/trust-scores.json" \
+        AUDIT_DIR="${TEST_TMP}/audit" \
+        CONFIG_DIR="${TEST_TMP}/config" \
+        SETTINGS_FILE="${TEST_TMP}/config/settings.json" \
+        OATH_PHASE_FILE="${TEST_TMP}/current-phase.md" \
+        bash "${PROJECT_ROOT}/hooks/post-tool-use-failure.sh"
+}
+
 # Helper: run stop hook
 run_stop() {
     HARNESS_ROOT="${PROJECT_ROOT}" \
@@ -134,8 +148,11 @@ audit_file() {
     score_before="$(get_score "file_read")"
 
     # Then: one failure
+    # Phase 2a: PostToolUse(is_error=true) fires first (audit only, no score update)
+    # PostToolUseFailure fires second (actual score decay)
     run_pre '{"tool_name":"Read","tool_input":{"file_path":"/tmp/b"}}'
     run_post '{"tool_name":"Read","tool_input":{"file_path":"/tmp/b"},"is_error":true}'
+    run_post_failure '{"tool_name":"Read","tool_input":{"file_path":"/tmp/b"}}'
 
     local score_after
     score_after="$(get_score "file_read")"
@@ -269,8 +286,11 @@ audit_file() {
     run_post '{"tool_name":"Read","tool_input":{"file_path":"/tmp/a"},"is_error":false}'
 
     # Failure on Write (file_write domain)
+    # Phase 2a: PostToolUse(is_error=true) fires first (audit only, no score update)
+    # PostToolUseFailure fires second (actual score decay)
     run_pre '{"tool_name":"Write","tool_input":{"file_path":"/tmp/b","content":"x"}}'
     run_post '{"tool_name":"Write","tool_input":{"file_path":"/tmp/b","content":"x"},"is_error":true}'
+    run_post_failure '{"tool_name":"Write","tool_input":{"file_path":"/tmp/b","content":"x"}}'
 
     local read_score write_score
     read_score="$(get_score "file_read")"

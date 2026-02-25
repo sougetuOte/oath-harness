@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Classify a tool call into a risk category
 # Args: tool_name (string), tool_input (JSON string)
-# Output: "low 1" | "medium 2" | "high 3" | "critical 4" (stdout)
+# Output: "low 1 0.2" | "medium 2 0.5" | "high 3 0.7" | "critical 4 1.0" (stdout)
 rcm_classify() {
     local tool_name="$1"
     local tool_input="$2"
@@ -18,13 +18,13 @@ rcm_classify() {
 
     # Priority 1: critical patterns (always block)
     if _rcm_is_critical "${tool_name}" "${cmd}" "${tool_input}"; then
-        echo "critical 4"
+        echo "critical 4 1.0"
         return 0
     fi
 
     # Priority 2: Deny List (high risk)
     if _rcm_is_denied "${tool_name}" "${cmd}"; then
-        echo "high 3"
+        echo "high 3 0.7"
         return 0
     fi
 
@@ -37,11 +37,11 @@ rcm_classify() {
             subcmd="$(echo "${subcmd}" | sed 's/^[[:space:]]*//')"
             [[ -z "${subcmd}" ]] && continue
             if _rcm_is_critical "${tool_name}" "${subcmd}" "${tool_input}"; then
-                echo "critical 4"
+                echo "critical 4 1.0"
                 return 0
             fi
             if _rcm_is_denied "${tool_name}" "${subcmd}"; then
-                echo "high 3"
+                echo "high 3 0.7"
                 return 0
             fi
             if ! _rcm_is_allowed "${tool_name}" "${subcmd}"; then
@@ -50,21 +50,21 @@ rcm_classify() {
         done < <(echo "${cmd}" | sed 's/[;&|]\+/\n/g')
 
         if [[ "${has_non_allowed}" == "true" ]]; then
-            echo "medium 2"
+            echo "medium 2 0.5"
         else
-            echo "low 1"
+            echo "low 1 0.2"
         fi
         return 0
     fi
 
     # Priority 3: Allow List (low risk)
     if _rcm_is_allowed "${tool_name}" "${cmd}"; then
-        echo "low 1"
+        echo "low 1 0.2"
         return 0
     fi
 
     # Priority 4: Gray Area (medium)
-    echo "medium 2"
+    echo "medium 2 0.5"
 }
 
 # Get the domain for a tool call

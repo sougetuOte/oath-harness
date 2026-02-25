@@ -13,7 +13,8 @@ _OATH_CONFIG_DEFAULTS='{
     "boost_threshold": 20,
     "initial_score": 0.3,
     "warmup_operations": 5,
-    "failure_decay": 0.85
+    "failure_decay": 0.85,
+    "recovery_boost_multiplier": 1.5
   },
   "risk": {
     "lambda1": 0.6,

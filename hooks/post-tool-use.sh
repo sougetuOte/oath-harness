@@ -64,19 +64,17 @@ session_id="$(sb_get_session_id)"
 # Step 7: Get domain for the tool call
 domain="$(rcm_get_domain "${tool_name}" "${tool_input_json}")"
 
-# Step 8: Update trust score based on outcome
+# Step 8: Update trust score and append audit outcome
 if [[ "${outcome}" == "success" ]]; then
     te_record_success "${domain}" || true
+    trust_after="$(te_get_score "${domain}")"
+    atl_update_outcome "${session_id}" "${tool_name}" "success" "${trust_after}" || true
+    log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=success trust_after=${trust_after}"
 else
-    te_record_failure "${domain}" || true
+    # Phase 2a: PostToolUseFailure is responsible for score decay.
+    # PostToolUse records audit outcome only; trust_score_after left as null.
+    atl_update_outcome "${session_id}" "${tool_name}" "failure" "" || true
+    log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=failure (score update delegated to PostToolUseFailure)"
 fi
-
-# Step 9: Get updated trust score
-trust_after="$(te_get_score "${domain}")"
-
-# Step 10: Append outcome to audit trail
-atl_update_outcome "${session_id}" "${tool_name}" "${outcome}" "${trust_after}" || true
-
-log_debug "post-tool-use: tool=${tool_name} domain=${domain} outcome=${outcome} trust_after=${trust_after}"
 
 exit 0

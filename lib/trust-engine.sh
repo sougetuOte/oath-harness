@@ -104,9 +104,38 @@ _te_ensure_domain() {
                 "total_operations": 0,
                 "last_operated_at": $t,
                 "is_warming_up": false,
-                "warmup_remaining": 0
+                "warmup_remaining": 0,
+                "consecutive_failures": 0,
+                "pre_failure_score": null,
+                "is_recovering": false
             }' "${TRUST_SCORES_FILE}")"
         printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
+    fi
+}
+
+# Get complexity value for a risk category
+# Args: risk_category (string: low|medium|high|critical)
+# Output: complexity (float, stdout)
+te_get_complexity() {
+    local risk_category="$1"
+    case "${risk_category}" in
+        low)      echo "0.2" ;;
+        medium)   echo "0.5" ;;
+        high)     echo "0.7" ;;
+        critical) echo "1.0" ;;
+        *)        echo "0.5" ;;
+    esac
+}
+
+# Get recovery_boost_multiplier from config, falling back to default 1.5
+# Output: multiplier value (float string, stdout)
+_te_recovery_boost_multiplier() {
+    local rb
+    rb="$(config_get "trust.recovery_boost_multiplier" 2>/dev/null)"
+    if [[ -z "${rb}" || "${rb}" == "null" ]]; then
+        echo "1.5"
+    else
+        echo "${rb}"
     fi
 }
 
@@ -127,9 +156,13 @@ _te_record_success_impl() {
     local now
     now="$(now_iso8601)"
 
+    local recovery_boost_multiplier
+    recovery_boost_multiplier="$(_te_recovery_boost_multiplier)"
+
     local tmp
     tmp="$(jq --arg d "${domain}" --arg action "success" \
         --argjson bt "${boost_threshold}" --argjson fd 0 --arg now "${now}" \
+        --argjson rb "${recovery_boost_multiplier}" \
         -f "${LIB_DIR}/jq/trust-update.jq" "${TRUST_SCORES_FILE}")"
     printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }
@@ -151,9 +184,13 @@ _te_record_failure_impl() {
     local now
     now="$(now_iso8601)"
 
+    local recovery_boost_multiplier
+    recovery_boost_multiplier="$(_te_recovery_boost_multiplier)"
+
     local tmp
     tmp="$(jq --arg d "${domain}" --arg action "failure" \
         --argjson bt 0 --argjson fd "${failure_decay}" --arg now "${now}" \
+        --argjson rb "${recovery_boost_multiplier}" \
         -f "${LIB_DIR}/jq/trust-update.jq" "${TRUST_SCORES_FILE}")"
     printf '%s\n' "${tmp}" | atomic_write "${TRUST_SCORES_FILE}"
 }

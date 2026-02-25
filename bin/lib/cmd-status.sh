@@ -73,14 +73,15 @@ _cmd_status_detail() {
 
     # Extract all fields in a single jq call
     local score successes failures total_ops last_operated is_warming_up warmup_remaining
+    local consecutive_failures is_recovering pre_failure_score
     local domain_data
     domain_data="$(jq -r --arg d "${domain}" \
-        '.domains[$d] | [.score, .successes, .failures, .total_operations, .last_operated_at, .is_warming_up, .warmup_remaining] | @tsv' \
+        '.domains[$d] | [.score, .successes, .failures, .total_operations, .last_operated_at, .is_warming_up, .warmup_remaining, (.consecutive_failures // 0), (.is_recovering // false), (.pre_failure_score // "null")] | @tsv' \
         "${TRUST_SCORES_FILE}" 2>/dev/null)" || {
         echo "Corrupted trust data: failed to read ${TRUST_SCORES_FILE}" >&2
         return 1
     }
-    IFS=$'\t' read -r score successes failures total_ops last_operated is_warming_up warmup_remaining <<< "${domain_data}"
+    IFS=$'\t' read -r score successes failures total_ops last_operated is_warming_up warmup_remaining consecutive_failures is_recovering pre_failure_score <<< "${domain_data}"
 
     local warmup_label
     if [[ "${is_warming_up}" == "true" ]]; then
@@ -95,10 +96,19 @@ _cmd_status_detail() {
     local colored_score
     colored_score="$(fmt_score "${score}")"
 
+    local recovering_label
+    if [[ "${is_recovering}" == "true" ]]; then
+        recovering_label="yes -> ${pre_failure_score}"
+    else
+        recovering_label="no"
+    fi
+
     printf "${FMT_BOLD}Domain:${FMT_RESET}            %s\n" "${domain}"
     printf "Score:             %s\n" "${colored_score}"
     printf "Successes:         %s\n" "${successes}"
     printf "Failures:          %s\n" "${failures}"
+    printf "Consecutive:       %s\n" "${consecutive_failures}"
+    printf "Recovering:        %s\n" "${recovering_label}"
     printf "Total operations:  %s\n" "${total_ops}"
     printf "Last operated:     %s (%s)\n" "${last_operated}" "${relative_time}"
     printf "Warming up:        %s\n" "${warmup_label}"
