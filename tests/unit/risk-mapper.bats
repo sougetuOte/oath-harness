@@ -245,6 +245,42 @@ TESTCFG
     assert_output "test_run"
 }
 
+@test "rcm_get_domain: git status → git_read" {
+    run rcm_get_domain "Bash" '{"command":"git status"}'
+    assert_success
+    assert_output "git_read"
+}
+
+@test "rcm_get_domain: git log → git_read" {
+    run rcm_get_domain "Bash" '{"command":"git log --oneline"}'
+    assert_success
+    assert_output "git_read"
+}
+
+@test "rcm_get_domain: git diff → git_read" {
+    run rcm_get_domain "Bash" '{"command":"git diff HEAD~1"}'
+    assert_success
+    assert_output "git_read"
+}
+
+@test "rcm_get_domain: git show → git_read" {
+    run rcm_get_domain "Bash" '{"command":"git show HEAD"}'
+    assert_success
+    assert_output "git_read"
+}
+
+@test "rcm_get_domain: git branch → git_read" {
+    run rcm_get_domain "Bash" '{"command":"git branch -a"}'
+    assert_success
+    assert_output "git_read"
+}
+
+@test "rcm_get_domain: git remote → git_read" {
+    run rcm_get_domain "Bash" '{"command":"git remote -v"}'
+    assert_success
+    assert_output "git_read"
+}
+
 @test "rcm_get_domain: git commit → git_local" {
     run rcm_get_domain "Bash" '{"command":"git commit -m msg"}'
     assert_success

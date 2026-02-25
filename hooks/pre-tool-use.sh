@@ -72,25 +72,34 @@ phase="$(tpe_get_current_phase)"
 # Step 11: Check tool profile (phase-based access control)
 profile_result="$(tpe_check "${tool_name}" "${domain}" "${phase}")"
 
-# Step 12: Handle profile blocked
-if [[ "${profile_result}" == "blocked" ]]; then
-    # Record in audit trail before blocking
-    # || true: audit failure must not prevent the blocking decision
-    atl_append_pre \
-        "${session_id}" \
-        "${tool_name}" \
-        "${tool_input_json}" \
-        "${domain}" \
-        "${risk_category}" \
-        "0" \
-        "0" \
-        "blocked" \
-        "unknown" \
-        "${phase}" \
-        "${complexity}" || true
-    echo "oath-harness: [BLOCKED] tool=${tool_name} domain=${domain} phase=${phase} reason=phase_policy - ${phase} phase does not allow ${domain} operations" >&2
-    exit 1
-fi
+# Step 12: Handle profile result (fail-safe: unknown values block)
+case "${profile_result}" in
+    blocked)
+        # Record in audit trail before blocking
+        # || true: audit failure must not prevent the blocking decision
+        atl_append_pre \
+            "${session_id}" \
+            "${tool_name}" \
+            "${tool_input_json}" \
+            "${domain}" \
+            "${risk_category}" \
+            "0" \
+            "0" \
+            "blocked" \
+            "unknown" \
+            "${phase}" \
+            "${complexity}" || true
+        echo "oath-harness: [BLOCKED] tool=${tool_name} domain=${domain} phase=${phase} reason=phase_policy - ${phase} phase does not allow ${domain} operations" >&2
+        exit 1
+        ;;
+    allowed|trust_gated)
+        # Continue to trust/autonomy calculation
+        ;;
+    *)
+        log_error "pre-tool-use: unexpected profile_result=${profile_result} for tool=${tool_name} domain=${domain} phase=${phase} - blocking for safety"
+        exit 1
+        ;;
+esac
 
 # Step 13: Get trust score
 trust="$(te_get_score "${domain}")"
@@ -133,6 +142,7 @@ case "${decision}" in
         exit 0
         ;;
     human_required)
+        # exit 2: Claude Code hooks API contract for human approval required
         echo "oath-harness: [CONFIRM] tool=${tool_name} domain=${domain} risk=${risk_category} autonomy=${autonomy} trust=${trust} - human approval required" >&2
         exit 2
         ;;

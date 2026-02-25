@@ -36,17 +36,23 @@ log_debug() {
 # Returns 0 (true) if the awk numeric expression is true.
 # Usage: _float_cmp "0.3 > 0.5"
 # Note: Relies on awk's non-zero exit for false expressions.
-# Safe because all callers pass literal numeric values from config/jq output.
+# Validates that $1 contains only numeric comparison expression chars to
+# prevent awk code injection from malformed settings.json values.
 _float_cmp() {
+    if [[ ! "$1" =~ ^[0-9.[:space:]eE+\<\>=!-]+$ ]]; then
+        log_error "_float_cmp: invalid expression: $1"
+        return 1
+    fi
     awk "BEGIN { exit !($1) }"
 }
 
 # --- flock wrapper ---
 # Executes a command under an exclusive file lock.
-# Args: lockfile, command..., [timeout_seconds]
+# Args: lockfile, timeout_seconds, command...
+# OATH_LOCK_TIMEOUT env var overrides the timeout argument (ADR-0003).
 with_flock() {
     local lockfile="$1"
-    local timeout="$2"
+    local timeout="${OATH_LOCK_TIMEOUT:-$2}"
     shift 2
 
     (

@@ -88,6 +88,29 @@ setup() {
     assert_success
 }
 
+@test "_float_cmp blocks injection attempt containing parentheses" {
+    # Expression with ) could close the awk function call and inject new awk code.
+    # The fix rejects any char outside [0-9. eE+<>=!-] before calling awk.
+    run _float_cmp "0.5 + 0 * system(id)"
+    assert_failure
+}
+
+@test "_float_cmp blocks injection with semicolon" {
+    # Semicolon separates awk statements; must be rejected before reaching awk.
+    run _float_cmp "0.5; exit 0"
+    assert_failure
+}
+
+@test "_float_cmp allows scientific notation expressions" {
+    run _float_cmp "1e2 > 50"
+    assert_success
+}
+
+@test "_float_cmp allows negative numbers" {
+    run _float_cmp "-0.5 < 0"
+    assert_success
+}
+
 # --- flock wrapper ---
 
 @test "with_flock executes command under lock" {
@@ -111,6 +134,21 @@ setup() {
     assert_failure
     exec 200>&-
     rm -f "${lockfile}" "${lockfile}.lock"
+}
+
+@test "with_flock OATH_LOCK_TIMEOUT overrides the passed timeout" {
+    local lockfile tmpfile
+    lockfile="$(mktemp)"
+    tmpfile="$(mktemp)"
+    echo "content" > "${tmpfile}"
+    # OATH_LOCK_TIMEOUT=10 overrides the passed timeout of 999 (irrelevant here)
+    # and OATH_LOCK_TIMEOUT=0 should cause immediate timeout on a held lock
+    exec 201>"${lockfile}.lock"
+    flock -n 201
+    OATH_LOCK_TIMEOUT=0 run with_flock "${lockfile}" 999 echo "should not run"
+    assert_failure
+    exec 201>&-
+    rm -f "${lockfile}" "${lockfile}.lock" "${tmpfile}"
 }
 
 # --- ISO 8601 datetime ---

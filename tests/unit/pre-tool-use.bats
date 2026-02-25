@@ -330,3 +330,77 @@ EOF
     # stdout must not contain updatedInput key
     [[ "${output}" != *"updatedInput"* ]]
 }
+
+# ============================================================
+# Fail-safe: unknown profile_result must block (CRIT-2)
+# ============================================================
+
+@test "Unknown profile_result from tpe_check -> exit 1 (fail-safe block)" {
+    # Arrange: create an isolated harness root with a mock tool-profile.sh
+    # that returns an unexpected value from tpe_check.
+    # This verifies the case statement's wildcard arm blocks for safety (CRIT-2).
+    local mock_root
+    mock_root="$(mktemp -d)"
+
+    # Symlink all lib files from the real project
+    mkdir -p "${mock_root}/lib"
+    for f in "${PROJECT_ROOT}/lib/"*.sh; do
+        ln -s "${f}" "${mock_root}/lib/$(basename "${f}")"
+    done
+    # Override tool-profile.sh with a mock that returns an unexpected value
+    rm "${mock_root}/lib/tool-profile.sh"
+    cat > "${mock_root}/lib/tool-profile.sh" <<'MOCK'
+#!/bin/bash
+tpe_get_current_phase() { echo "building"; }
+tpe_check() { echo "unexpected_value"; }
+MOCK
+
+    # Symlink other required directories and files
+    ln -s "${PROJECT_ROOT}/lib/jq" "${mock_root}/lib/jq" 2>/dev/null || true
+    mkdir -p "${mock_root}/hooks"
+    ln -s "${PROJECT_ROOT}/hooks/pre-tool-use.sh" "${mock_root}/hooks/pre-tool-use.sh"
+    mkdir -p "${mock_root}/.claude"
+    echo "BUILDING" > "${mock_root}/.claude/current-phase.md"
+
+    # Act: run the hook from the mock root's hooks directory
+    # HARNESS_ROOT is computed by the hook from BASH_SOURCE, so we run
+    # the symlinked hook which resolves to PROJECT_ROOT - instead we copy it
+    rm "${mock_root}/hooks/pre-tool-use.sh"
+    cp "${PROJECT_ROOT}/hooks/pre-tool-use.sh" "${mock_root}/hooks/pre-tool-use.sh"
+
+    run bash "${mock_root}/hooks/pre-tool-use.sh" <<< '{"tool_name":"Read","tool_input":{"file_path":"/tmp/foo.txt"}}'
+    rm -rf "${mock_root}"
+
+    # Assert: unknown profile_result must block (exit 1) for fail-safety
+    assert_failure
+    assert_equal "${status}" "1"
+}
+
+@test "Unknown profile_result from tpe_check -> stderr contains error message" {
+    # Arrange: same mock setup - unknown profile_result should log an error
+    local mock_root
+    mock_root="$(mktemp -d)"
+
+    mkdir -p "${mock_root}/lib"
+    for f in "${PROJECT_ROOT}/lib/"*.sh; do
+        ln -s "${f}" "${mock_root}/lib/$(basename "${f}")"
+    done
+    rm "${mock_root}/lib/tool-profile.sh"
+    cat > "${mock_root}/lib/tool-profile.sh" <<'MOCK'
+#!/bin/bash
+tpe_get_current_phase() { echo "building"; }
+tpe_check() { echo "unexpected_value"; }
+MOCK
+    ln -s "${PROJECT_ROOT}/lib/jq" "${mock_root}/lib/jq" 2>/dev/null || true
+    mkdir -p "${mock_root}/.claude"
+    echo "BUILDING" > "${mock_root}/.claude/current-phase.md"
+    mkdir -p "${mock_root}/hooks"
+    cp "${PROJECT_ROOT}/hooks/pre-tool-use.sh" "${mock_root}/hooks/pre-tool-use.sh"
+
+    run bash "${mock_root}/hooks/pre-tool-use.sh" <<< '{"tool_name":"Read","tool_input":{"file_path":"/tmp/foo.txt"}}'
+    rm -rf "${mock_root}"
+
+    # Assert: error output must mention the unexpected value for diagnosability
+    assert_failure
+    assert_output --partial "unexpected_value"
+}

@@ -29,7 +29,12 @@ rcm_classify() {
     fi
 
     # Priority 2.5: Compound command analysis (CW-1, WARN-001)
-    # Split on ;, &&, ||, | and check each sub-command independently
+    # Split on ;, &&, ||, | and check each sub-command independently.
+    # Limitation: sed-based splitting does not respect quoted strings.
+    # e.g., `echo "hello; world"` would be split on the semicolon.
+    # This is intentionally fail-safe: over-classification (higher risk) is acceptable,
+    # under-classification (missing a dangerous sub-command) is not.
+    # Full bash parsing is out of scope for this project (ADR: no external dependencies).
     if echo "${cmd}" | grep -qE '[;|&]{1,2}'; then
         local subcmd
         local has_non_allowed=false
@@ -130,7 +135,7 @@ rcm_get_domain() {
                     return 0
                     ;;
                 status|log|diff|show|branch|remote)
-                    echo "file_read"
+                    echo "git_read"
                     return 0
                     ;;
             esac
