@@ -106,9 +106,10 @@ lib/
     └── trust-update.jq  # 信頼スコア更新フィルタ
 
 hooks/
-├── pre-tool-use.sh  # ツール実行前の判定（allow/block）
-├── post-tool-use.sh # ツール実行後の信頼更新
-└── stop.sh          # セッション終了時の永続化
+├── pre-tool-use.sh           # ツール実行前の判定（allow/block）
+├── post-tool-use.sh          # ツール実行後の信頼更新
+├── post-tool-use-failure.sh  # ツール実行失敗時の専用処理
+└── stop.sh                   # セッション終了時の永続化
 
 bin/
 ├── oath             # oath CLI エントリポイント（v0.1.0）
@@ -142,9 +143,9 @@ install/
 ### Testing
 
 ```bash
-bash tests/run-all-tests.sh    # 全テスト（304件）
-bash tests/run-unit-tests.sh   # 単体テスト（241件）
-bash tests/run-integration-tests.sh  # 統合テスト（63件）
+bash tests/run-all-tests.sh    # 全テスト（398件）
+bash tests/run-unit-tests.sh   # 単体テスト（316件）
+bash tests/run-integration-tests.sh  # 統合テスト（82件）
 ```
 
 - フレームワーク: bats-core（git submodule）
@@ -156,7 +157,7 @@ bash tests/run-integration-tests.sh  # 統合テスト（63件）
 ```
 # 自律度計算
 autonomy = 1 - (λ1 × risk_norm + λ2 × complexity) × (1 - trust)
-  λ1 = 0.6, λ2 = 0.4, complexity = 0.5（Phase 1固定）
+  λ1 = 0.6, λ2 = 0.4, complexity = risk連動（low:0.2/med:0.5/high:0.7/crit:1.0）
 
 # 判定
 risk = critical       → blocked（常時）
@@ -168,11 +169,14 @@ autonomy < 0.4        → human_required
 成功時（初期ブースト ≤20操作）: score += (1 - score) × 0.05
 成功時（通常 >20操作）:        score += (1 - score) × 0.02
 成功時（ウォームアップ中）:    上記係数を2倍（0.10 / 0.04）
+成功時（回復ブースト中）:      上記係数を1.5倍（warmupと併用可）
 失敗時:                       score × 0.85
+失敗時（回復開始）:           pre_failure_score記録、is_recovering=true
 ```
 
 ## Development Status
 
 Phase 1 (MVP) — 完了
-全304テスト（単体241 + 統合63）
+Phase 2a (改良+準備) — 完了
+全398テスト（単体316 + 統合82）
 oath CLI（bin/oath）— status / audit / config / phase / demo

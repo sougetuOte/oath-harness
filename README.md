@@ -276,7 +276,7 @@ These laws govern conflict resolution throughout the system. "Safe by default" i
 ## Testing
 
 ```bash
-bash tests/run-all-tests.sh  # 304 tests
+bash tests/run-all-tests.sh  # 398 tests
 ```
 
 To run unit tests and integration tests separately:

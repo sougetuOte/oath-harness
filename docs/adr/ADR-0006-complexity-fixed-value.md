@@ -1,8 +1,28 @@
 # ADR-0006: complexity = 0.5 固定値の採用
 
-**Status**: Accepted
+**Status**: Superseded by Phase 2a (2026-02-25)
 **Date**: 2026-02-23
 **Context**: oath-harness Phase 1 (MVP)
+
+## Superseded
+
+Phase 2a において、`complexity` を `risk_category` から動的に導出する方式を採用した。
+これにより本 ADR は置き換えられる。
+
+導出ルール:
+
+| risk_category | complexity |
+|---------------|------------|
+| low           | 0.2        |
+| medium        | 0.5        |
+| high          | 0.7        |
+| critical      | 1.0        |
+
+Phase 1 で採用した固定値 0.5 は、medium カテゴリのデフォルト値として引き継がれる。
+
+詳細は以下を参照:
+- `docs/specs/phase2a-design.md` Section 3.1.1
+- `docs/specs/phase2a-requirements.md` Section E
 
 ## Context
 
