@@ -143,8 +143,8 @@ install/
 ### Testing
 
 ```bash
-bash tests/run-all-tests.sh    # 全テスト（398件）
-bash tests/run-unit-tests.sh   # 単体テスト（316件）
+bash tests/run-all-tests.sh    # 全テスト（422件）
+bash tests/run-unit-tests.sh   # 単体テスト（340件）
 bash tests/run-integration-tests.sh  # 統合テスト（82件）
 ```
 
@@ -178,5 +178,5 @@ autonomy < 0.4        → human_required
 
 Phase 1 (MVP) — 完了
 Phase 2a (改良+準備) — 完了
-全398テスト（単体316 + 統合82）
+全422テスト（単体340 + 統合82）
 oath CLI（bin/oath）— status / audit / config / phase / demo
