@@ -40,11 +40,12 @@ cmd_audit() {
         return 0
     fi
 
-    local total_entries
-    total_entries="$(jq -c 'select(.outcome == "pending")' "${audit_file}" | wc -l)"
+    local total_entries pending_entries
+    total_entries="$(wc -l < "${audit_file}")"
+    pending_entries="$(jq -c 'select(.outcome == "pending")' "${audit_file}" | wc -l)"
 
-    printf "${FMT_BOLD}Audit log: %s  |  %s decisions${FMT_RESET}\n" \
-        "${today}" "${total_entries}"
+    printf "${FMT_BOLD}Audit log: %s  |  %s entries (%s pending)${FMT_RESET}\n" \
+        "${today}" "${total_entries}" "${pending_entries}"
     echo ""
     echo "Recent decisions:"
 

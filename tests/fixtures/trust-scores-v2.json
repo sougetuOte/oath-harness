@@ -10,7 +10,10 @@
       "total_operations": 0,
       "last_operated_at": "2026-02-20T12:00:00Z",
       "is_warming_up": false,
-      "warmup_remaining": 0
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
     },
     "file_read": {
       "score": 0.75,
@@ -19,7 +22,10 @@
       "total_operations": 63,
       "last_operated_at": "2026-02-20T12:00:00Z",
       "is_warming_up": false,
-      "warmup_remaining": 0
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
     },
     "shell_exec": {
       "score": 0.5,
@@ -28,7 +34,10 @@
       "total_operations": 33,
       "last_operated_at": "2026-02-20T12:00:00Z",
       "is_warming_up": false,
-      "warmup_remaining": 0
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
     }
   }
 }

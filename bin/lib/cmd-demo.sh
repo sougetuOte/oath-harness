@@ -7,8 +7,8 @@
 cmd_demo() {
     local demo_dir
     demo_dir="$(mktemp -d)"
-    # Capture path in trap string so cleanup works even if local var is out of scope
-    trap "rm -rf '${demo_dir}'" EXIT
+    # Use trap with variable expanded at definition time (safe: mktemp output has no special chars)
+    trap "rm -rf ${demo_dir}" EXIT
 
     _demo_generate_trust_scores "${demo_dir}"
     _demo_generate_audit_entries "${demo_dir}"
@@ -448,13 +448,16 @@ demo_scenario_consecutive_fail() {
 # =========================================================================
 
 # Generate sample trust-scores.json with 5 domains at various trust levels.
+# Includes Phase 2a fields: consecutive_failures, pre_failure_score, is_recovering.
 # Args: demo_dir (path)
 _demo_generate_trust_scores() {
     local dir="$1"
-    cat > "${dir}/trust-scores.json" <<'EOF'
+    local now
+    now="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    cat > "${dir}/trust-scores.json" <<EOF
 {
   "version": "2",
-  "updated_at": "2026-02-24T10:00:00Z",
+  "updated_at": "${now}",
   "global_operation_count": 59,
   "domains": {
     "_global": {
@@ -462,45 +465,60 @@ _demo_generate_trust_scores() {
       "successes": 0,
       "failures": 0,
       "total_operations": 0,
-      "last_operated_at": "2026-02-24T10:00:00Z",
+      "last_operated_at": "${now}",
       "is_warming_up": false,
-      "warmup_remaining": 0
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
     },
     "file_read": {
       "score": 0.82,
       "successes": 34,
       "failures": 1,
       "total_operations": 35,
-      "last_operated_at": "2026-02-24T09:55:00Z",
+      "last_operated_at": "${now}",
       "is_warming_up": false,
-      "warmup_remaining": 0
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
     },
     "shell_exec": {
       "score": 0.51,
       "successes": 10,
       "failures": 1,
       "total_operations": 11,
-      "last_operated_at": "2026-02-24T09:50:00Z",
+      "last_operated_at": "${now}",
       "is_warming_up": false,
-      "warmup_remaining": 0
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
     },
     "file_write": {
       "score": 0.45,
       "successes": 7,
       "failures": 1,
       "total_operations": 8,
-      "last_operated_at": "2026-02-24T09:48:00Z",
+      "last_operated_at": "${now}",
       "is_warming_up": false,
-      "warmup_remaining": 0
+      "warmup_remaining": 0,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
     },
     "git_local": {
       "score": 0.38,
       "successes": 4,
       "failures": 1,
       "total_operations": 5,
-      "last_operated_at": "2026-02-24T09:45:00Z",
+      "last_operated_at": "${now}",
       "is_warming_up": true,
-      "warmup_remaining": 2
+      "warmup_remaining": 2,
+      "consecutive_failures": 0,
+      "pre_failure_score": null,
+      "is_recovering": false
     }
   }
 }
@@ -508,6 +526,7 @@ EOF
 }
 
 # Generate sample audit JSONL with 8 entries covering all decision types.
+# Timestamps are generated relative to current time.
 # Args: demo_dir (path)
 _demo_generate_audit_entries() {
     local dir="$1"
@@ -517,15 +536,30 @@ _demo_generate_audit_entries() {
     local audit_file="${audit_dir}/${today}.jsonl"
     mkdir -p "${audit_dir}"
 
-    cat > "${audit_file}" <<'EOF'
-{"timestamp":"2026-02-24T09:30:00Z","tool_name":"Read","tool_input":{"file_path":"src/main.sh"},"domain":"file_read","risk_category":"low","decision":"auto_approved","outcome":"pending","session_id":"demo-session"}
-{"timestamp":"2026-02-24T09:32:00Z","tool_name":"Read","tool_input":{"file_path":"lib/config.sh"},"domain":"file_read","risk_category":"low","decision":"auto_approved","outcome":"pending","session_id":"demo-session"}
-{"timestamp":"2026-02-24T09:34:00Z","tool_name":"Bash","tool_input":{"command":"npm test"},"domain":"shell_exec","risk_category":"medium","decision":"logged_only","outcome":"pending","session_id":"demo-session"}
-{"timestamp":"2026-02-24T09:36:00Z","tool_name":"Write","tool_input":{"file_path":"src/new-feature.sh"},"domain":"file_write","risk_category":"medium","decision":"logged_only","outcome":"pending","session_id":"demo-session"}
-{"timestamp":"2026-02-24T09:38:00Z","tool_name":"Bash","tool_input":{"command":"git commit -m fix"},"domain":"git_local","risk_category":"high","decision":"human_required","outcome":"pending","session_id":"demo-session"}
-{"timestamp":"2026-02-24T09:40:00Z","tool_name":"Bash","tool_input":{"command":"rm -rf /tmp/old"},"domain":"shell_exec","risk_category":"critical","decision":"blocked","outcome":"pending","session_id":"demo-session"}
-{"timestamp":"2026-02-24T09:42:00Z","tool_name":"Read","tool_input":{"file_path":"tests/unit.bats"},"domain":"file_read","risk_category":"low","decision":"auto_approved","outcome":"pending","session_id":"demo-session"}
-{"timestamp":"2026-02-24T09:44:00Z","tool_name":"Bash","tool_input":{"command":"ls -la"},"domain":"shell_exec","risk_category":"low","decision":"auto_approved","outcome":"pending","session_id":"demo-session"}
+    # Generate timestamps relative to now (offset in minutes)
+    local ts_base
+    ts_base="$(date -u '+%Y-%m-%dT')"
+    local hour minute
+    hour="$(date -u '+%H')"
+    minute="$(date -u '+%M')"
+
+    # Helper: generate timestamp offset by N minutes from current time
+    _demo_ts() {
+        local offset_min="$1"
+        date -u -d "${offset_min} minutes ago" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+            || date -u -v-"${offset_min}"M '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+            || echo "${ts_base}${hour}:${minute}:00Z"
+    }
+
+    cat > "${audit_file}" <<EOF
+{"timestamp":"$(_demo_ts 16)","tool_name":"Read","tool_input":{"file_path":"src/main.sh"},"domain":"file_read","risk_category":"low","decision":"auto_approved","outcome":"pending","session_id":"demo-session"}
+{"timestamp":"$(_demo_ts 14)","tool_name":"Read","tool_input":{"file_path":"lib/config.sh"},"domain":"file_read","risk_category":"low","decision":"auto_approved","outcome":"pending","session_id":"demo-session"}
+{"timestamp":"$(_demo_ts 12)","tool_name":"Bash","tool_input":{"command":"npm test"},"domain":"shell_exec","risk_category":"medium","decision":"logged_only","outcome":"pending","session_id":"demo-session"}
+{"timestamp":"$(_demo_ts 10)","tool_name":"Write","tool_input":{"file_path":"src/new-feature.sh"},"domain":"file_write","risk_category":"medium","decision":"logged_only","outcome":"pending","session_id":"demo-session"}
+{"timestamp":"$(_demo_ts 8)","tool_name":"Bash","tool_input":{"command":"git commit -m fix"},"domain":"git_local","risk_category":"high","decision":"human_required","outcome":"pending","session_id":"demo-session"}
+{"timestamp":"$(_demo_ts 6)","tool_name":"Bash","tool_input":{"command":"rm -rf /tmp/old"},"domain":"shell_exec","risk_category":"critical","decision":"blocked","outcome":"pending","session_id":"demo-session"}
+{"timestamp":"$(_demo_ts 4)","tool_name":"Read","tool_input":{"file_path":"tests/unit.bats"},"domain":"file_read","risk_category":"low","decision":"auto_approved","outcome":"pending","session_id":"demo-session"}
+{"timestamp":"$(_demo_ts 2)","tool_name":"Bash","tool_input":{"command":"ls -la"},"domain":"shell_exec","risk_category":"low","decision":"auto_approved","outcome":"pending","session_id":"demo-session"}
 EOF
 }
 

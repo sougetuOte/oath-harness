@@ -22,12 +22,13 @@ cmd_config() {
     printf "oath-harness configuration (config/settings.json)\n"
 
     # --- Trust ---
-    local initial_score hibernation_days boost_threshold warmup_operations failure_decay
+    local initial_score hibernation_days boost_threshold warmup_operations failure_decay recovery_boost
     initial_score="$(config_get "trust.initial_score")"
     hibernation_days="$(config_get "trust.hibernation_days")"
     boost_threshold="$(config_get "trust.boost_threshold")"
     warmup_operations="$(config_get "trust.warmup_operations")"
     failure_decay="$(config_get "trust.failure_decay")"
+    recovery_boost="$(config_get "trust.recovery_boost_multiplier")"
 
     printf "\nTrust:\n"
     printf "  %-22s %s%s\n" "initial_score:" "${initial_score}" "$(_cfg_custom_marker "trust.initial_score" "${initial_score}")"
@@ -35,6 +36,7 @@ cmd_config() {
     printf "  %-22s %s%s\n" "boost_threshold:" "${boost_threshold}" "$(_cfg_custom_marker "trust.boost_threshold" "${boost_threshold}")"
     printf "  %-22s %s%s\n" "warmup_operations:" "${warmup_operations}" "$(_cfg_custom_marker "trust.warmup_operations" "${warmup_operations}")"
     printf "  %-22s %s%s\n" "failure_decay:" "${failure_decay}" "$(_cfg_custom_marker "trust.failure_decay" "${failure_decay}")"
+    printf "  %-22s %s%s\n" "recovery_boost:" "${recovery_boost}" "$(_cfg_custom_marker "trust.recovery_boost_multiplier" "${recovery_boost}")"
 
     # --- Risk weights ---
     local lambda1 lambda2
